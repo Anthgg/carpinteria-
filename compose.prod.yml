@@ -1,0 +1,76 @@
+name: carpinteria-prod
+
+# Mismo stack en modo produccion: nginx sirve el build estatico y hace de
+# entrada unica en el puerto 8080 (/ y /api). Sin fuentes montadas en vivo.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-carpinteria}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-carpinteria_local}
+      POSTGRES_DB: ${POSTGRES_DB:-carpinteria}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    networks:
+      - carpinteria
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ../Bcarpinteria
+      dockerfile: Dockerfile
+      target: production
+    environment:
+      PORT: "3000"
+      APP_ENV: ${APP_ENV:-LOCAL}
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-carpinteria}:${POSTGRES_PASSWORD:-carpinteria_local}@postgres:5432/${POSTGRES_DB:-carpinteria}?schema=public
+      BD_PATH: /app/bd/inventario g.xlsx
+    volumes:
+      - ../Bcarpinteria/bd:/app/bd:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/health').then((r) => process.exit(r.status === 200 ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 40s
+    networks:
+      - carpinteria
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    ports:
+      - "127.0.0.1:8080:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - carpinteria
+    restart: unless-stopped
+
+networks:
+  carpinteria:
+    name: carpinteria_net_prod
+
+volumes:
+  pgdata:
+    name: carpinteria_prod_pgdata
