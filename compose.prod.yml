@@ -7,7 +7,7 @@ services:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-carpinteria}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-carpinteria_local}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD como secreto antes del modo production}
       POSTGRES_DB: ${POSTGRES_DB:-carpinteria}
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -31,11 +31,11 @@ services:
       APP_ENV: ${APP_ENV:-LOCAL}
       NODE_ENV: production
       JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET como secreto aleatorio antes del modo production}
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://127.0.0.1:8080,http://localhost:8080}
-      DATABASE_URL: postgresql://${POSTGRES_USER:-carpinteria}:${POSTGRES_PASSWORD:-carpinteria_local}@postgres:5432/${POSTGRES_DB:-carpinteria}?schema=public
+      CORS_ORIGINS: ${CORS_ORIGINS:?Define CORS_ORIGINS como lista de origenes permitidos}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-carpinteria}:${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD como secreto antes del modo production}@postgres:5432/${POSTGRES_DB:-carpinteria}?schema=public
       BD_PATH: /app/bd/inventario g.xlsx
       UPLOAD_DIR: /app/uploads
-      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://127.0.0.1:8080}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?Define PUBLIC_BASE_URL con el origen publico del sistema}
       VAPID_SUBJECT: ${VAPID_SUBJECT:-}
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}

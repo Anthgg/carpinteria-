@@ -43,9 +43,9 @@ export async function download(path: string, filename: string) {
   URL.revokeObjectURL(url);
 }
 
+const penCurrencyFormatter = new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN', maximumFractionDigits: 2 });
 export const formatPEN = (cents: number | string | null | undefined) =>
-  new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN', maximumFractionDigits: 2 })
-    .format(Number(cents ?? 0) / 100);
+  penCurrencyFormatter.format(Number(cents ?? 0) / 100);
 
 export const toMillimeters = (value: string, unit: 'mm' | 'cm' | 'm') => {
   const number = Number(value);
@@ -53,6 +53,7 @@ export const toMillimeters = (value: string, unit: 'mm' | 'cm' | 'm') => {
   return Math.round(number * (unit === 'm' ? 1000 : unit === 'cm' ? 10 : 1));
 };
 
+const dateTimeFormatter = new Intl.DateTimeFormat('es-PE', { dateStyle: 'medium', timeStyle: 'short' });
 export const dateTime = (value?: string | null) => value
-  ? new Intl.DateTimeFormat('es-PE', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
+  ? dateTimeFormatter.format(new Date(value))
   : '—';

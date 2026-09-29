@@ -71,7 +71,7 @@ function LoginScreen({ onLogin }: { onLogin: (user: User) => void }) {
             <label>Correo electrónico<input type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required /></label>
             <label>Contraseña<input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} /></label>
             {error ? <p className="form-error" role="alert">{error}</p> : null}
-            <button className="button button--primary button--wide" disabled={busy}>{busy ? 'Verificando…' : 'Entrar al taller'} <span aria-hidden="true">↗</span></button>
+            <button type="submit" className="button button--primary button--wide" disabled={busy}>{busy ? 'Verificando…' : 'Entrar al taller'} <span aria-hidden="true">↗</span></button>
           </form>
           <div className="login-note"><span className="status-dot status-dot--green" /> Sesión local protegida</div>
         </div>
@@ -80,6 +80,8 @@ function LoginScreen({ onLogin }: { onLogin: (user: User) => void }) {
     </main>
   );
 }
+
+const todayDateFormatter = new Intl.DateTimeFormat('es-PE', { weekday: 'long', day: 'numeric', month: 'long' });
 
 function Workspace({ user, onLogout }: { user: User; onLogout: () => void }) {
   const [page, setPage] = useState<AppPage>(user.role === 'OPERARIO' ? 'production' : 'dashboard');
@@ -148,25 +150,25 @@ function Workspace({ user, onLogout }: { user: User; onLogout: () => void }) {
   return (
     <div className="workspace">
       <aside className="sidebar">
-        <a className="app-brand" href="/" aria-label="Ir al resumen">
+        <a className="app-brand" href="/">
           <span className="app-brand__mark">C<span>°</span></span>
           <span className="app-brand__text"><b>CARPINTERÍA</b><small>ORDENADA 360°</small></span>
         </a>
         <div className="sidebar-caption">ESPACIO DE TRABAJO</div>
         <nav className="side-nav" aria-label="Navegación principal">
-          {allowedNav.map((item) => <button key={item.id} className={`side-link ${page === item.id ? 'is-active' : ''}`} onClick={() => { setPage(item.id); setNotice(''); setError(''); }}><span className="side-link__icon">{item.icon}</span><span>{item.label}</span>{page === item.id ? <span className="side-link__active" /> : null}</button>)}
+          {allowedNav.map((item) => <button type="button" key={item.id} className={`side-link ${page === item.id ? 'is-active' : ''}`} onClick={() => { setPage(item.id); setNotice(''); setError(''); }}><span className="side-link__icon">{item.icon}</span><span>{item.label}</span>{page === item.id ? <span className="side-link__active" /> : null}</button>)}
         </nav>
         <div className="sidebar-spacer" />
         <div className="sidebar-workshop"><span className="workshop-symbol">⌂</span><div><b>Taller principal</b><small>Entorno local</small></div><span className="online-light" title="API conectada" /></div>
-        <div className="sidebar-user"><div className="avatar">{user.name.slice(0, 1).toUpperCase()}</div><div className="sidebar-user__info"><b>{user.name}</b><small>{user.role === 'OPERARIO' ? 'Operario' : user.role === 'TESTER' ? 'Tester' : 'Administrador'}</small></div><button className="icon-button logout-button" title="Cerrar sesión" aria-label="Cerrar sesión" onClick={onLogout}>↗</button></div>
+        <div className="sidebar-user"><div className="avatar">{user.name.slice(0, 1).toUpperCase()}</div><div className="sidebar-user__info"><b>{user.name}</b><small>{user.role === 'OPERARIO' ? 'Operario' : user.role === 'TESTER' ? 'Tester' : 'Administrador'}</small></div><button type="button" className="icon-button logout-button" title="Cerrar sesión" aria-label="Cerrar sesión" onClick={onLogout}>↗</button></div>
       </aside>
       <main className="main-area">
         <header className="topbar">
           <div className="breadcrumb"><span>TALLER</span><b>/</b><strong>{title}</strong></div>
-          <div className="topbar__right"><span className="today-label">{new Intl.DateTimeFormat('es-PE', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())}</span><span className="topbar-avatar">{user.name.slice(0, 1).toUpperCase()}</span></div>
+          <div className="topbar__right"><span className="today-label">{todayDateFormatter.format(new Date())}</span><span className="topbar-avatar">{user.name.slice(0, 1).toUpperCase()}</span></div>
         </header>
-        {notice ? <div className="toast toast--success" role="status"><span>✓</span>{notice}<button onClick={() => setNotice('')} aria-label="Cerrar aviso">×</button></div> : null}
-        {error ? <div className="toast toast--error" role="alert"><span>!</span>{error}<button onClick={() => setError('')} aria-label="Cerrar error">×</button></div> : null}
+        {notice ? <div className="toast toast--success" role="status"><span>✓</span>{notice}<button type="button" onClick={() => setNotice('')} aria-label="Cerrar aviso">×</button></div> : null}
+        {error ? <div className="toast toast--error" role="alert"><span>!</span>{error}<button type="button" onClick={() => setError('')} aria-label="Cerrar error">×</button></div> : null}
         {loading ? <div className="loading-state"><span className="spinner" />Cargando {title.toLowerCase()}…</div> : <div className="page-content">
           {page === 'dashboard' ? <DashboardScreen data={data.summary as never} onNavigate={setPage} /> : null}
           {page === 'inventory' ? <InventoryScreen data={data as never} busy={busy} run={run} canManage={user.role !== 'OPERARIO'} /> : null}
