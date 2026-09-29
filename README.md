@@ -51,3 +51,21 @@ Sin Docker, Vite escucha en 5173 y usa `VITE_PROXY_TARGET` para `/api`. Para la 
 Compose interpola `Carpinteria/.env` (ejemplo en `.env.example`). El backend usa `JWT_SECRET` estable para conservar sesiones entre reinicios; si se omite en desarrollo, usa una clave efímera. Las notificaciones requieren `VAPID_SUBJECT`, `VAPID_PUBLIC_KEY` y `VAPID_PRIVATE_KEY`, y quedan apagadas si no están configuradas.
 
 `compose.prod.yml` conserva el mismo puerto `127.0.0.1:8080`, sirve los archivos compilados desde nginx, exige `JWT_SECRET` y usa sus propios volúmenes persistentes. V1 sigue siendo local y no incluye despliegue cloud.
+
+## Instalación para la presentación V1
+
+**Requisitos:** Windows 10/11, Docker Desktop iniciado en modo de contenedores Linux y Docker Compose v2. No se requiere instalar PostgreSQL localmente. Para ejecutar Vite fuera de Docker se necesita Node.js compatible con Vite 8 (Node.js 22) y npm. Mantén el Excel fuente en `..\Bcarpinteria\bd\inventario g.xlsx`; Compose lo monta en la API como solo lectura.
+
+Desde esta carpeta, crea `.env` desde `.env.example` si hace falta y arranca el modo local:
+
+```powershell
+docker compose up --build
+```
+
+Abre <http://127.0.0.1:8080>. La API vive bajo `/api` y su salud se consulta en <http://127.0.0.1:8080/api/health>. El seguimiento público usa `/seguimiento/<token>`. Para detener el modo local, ejecuta `docker compose down` desde esta carpeta. Se conservan PostgreSQL en el volumen nombrado `carpinteria_pgdata` y las fotos en `carpinteria_uploads`; no ejecutar `docker compose down -v` sobre la base que se usará en la exposición.
+
+`compose.yml` es el entorno local de desarrollo, con fuentes montadas, Vite/NestJS y PostgreSQL dentro de Docker. `compose.prod.yml` genera los builds de producción, sirve la interfaz con Nginx y exige secretos definidos; usa los volúmenes independientes `carpinteria_prod_pgdata` y `carpinteria_prod_uploads`. Para esta presentación se usa `compose.yml`. PostgreSQL no expone un puerto al equipo anfitrión.
+
+El acceso distingue `TESTER`, `ADMIN` y `OPERARIO`; el menú y las rutas permitidas dependen del rol y la API aplica sus propias comprobaciones. Web Push requiere `VAPID_SUBJECT`, `VAPID_PUBLIC_KEY` y `VAPID_PRIVATE_KEY`; sin esas claves el resto de la aplicación y el seguimiento siguen disponibles. Supabase no forma parte de V1. No hay pasarela de pago ni facturación SUNAT; los pagos se registran manualmente.
+
+Las cuentas de presentación son `demo-tester@local.test` (`TESTER`), `demo-admin@local.test` (`ADMIN`) y `demo-operario@local.test` (`OPERARIO`). Sus contraseñas están solo en `%USERPROFILE%\.codex\local-secrets\Carpinteria\demo-access.txt`, fuera de ambos repositorios; no guardes contraseñas reales en README, `.env` ni archivos versionados. Para una base vacía, la guía de backend explica el seed por variables `SEED_TESTER_*`, `SEED_ADMIN_*` y `SEED_OPERATOR_*`. No vuelvas a ejecutar el seed sobre la base poblada de presentación: también puede actualizar los productos iniciales. En esa base, las cuentas se administran desde Configuración > Usuarios.
