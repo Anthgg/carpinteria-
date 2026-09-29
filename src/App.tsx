@@ -1,168 +1,201 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { FormEvent } from 'react';
+import { api } from './api';
+import { DashboardScreen, InventoryScreen, CustomersScreen, ProductsScreen, OrdersScreen, SettingsScreen, UsersScreen } from './screens/GeneralScreens';
+import { ProductionScreen } from './screens/ProductionScreen';
+import { TrackingScreen } from './screens/TrackingScreen';
 
-const API_BASE = (import.meta.env.VITE_API_BASE ?? '/api').replace(/\/+$/, '');
-const POLL_MS = 5000;
-
-type Health = {
-  status: string;
-  service: string;
-  environment: string;
-  database: { connected: boolean; message: string };
-  excel: { file: string; path: string; exists: boolean; readOnly: boolean };
-  timestamp: string;
+export type Role = 'TESTER' | 'ADMIN' | 'OPERARIO';
+export type User = { id: string; name: string; email: string; role: Role };
+export type InventoryItem = {
+  id: string; code: string; legacyId?: string | null; name: string; description?: string | null; type: string; unit: string; stock: number | string;
+  unitPriceCents: number; sellable: boolean; controlsStock: boolean; productionConsumable: boolean;
+  requiresDimensions: boolean; lengthMm?: number | null; widthMm?: number | null; thicknessMm?: number | null;
+  active?: boolean;
+  pieceCounts?: Record<string, number>;
 };
-
-type Phase = 'checking' | 'online' | 'offline';
-
-type RowState = 'ok' | 'fail' | 'wait';
-
-type Row = {
-  label: string;
-  value: string;
-  state: RowState;
-  detail?: string;
+export type Customer = { id: string; name: string; documentType: string; documentNumber?: string | null; phone?: string | null; email?: string | null; address?: string | null; notes?: string | null };
+export type Product = { id: string; code?: string | null; name: string; description?: string | null; defaultProduct: boolean; active: boolean };
+export type Order = {
+  id: string; code: string; customer: Customer; status: string; subtotalCents: number; discountCents: number;
+  taxRateBasisPoints: number; taxCents: number; totalCents: number; paidCents: number; paymentStatus: string;
+  trackingToken: string; createdAt: string; lines: Array<{ id: string; name: string; type: string; quantity: number; unitPriceCents: number; lineSubtotalCents: number; job?: { id: string; stage: string; status: string; progress: number } | null }>;
 };
+export type SettingValues = { taxRate: number; kerfMm: number; companyName: string; companyPhone: string };
+export type AppPage = 'dashboard' | 'inventory' | 'customers' | 'products' | 'orders' | 'production' | 'settings' | 'users';
 
-function Dial({ states }: { states: RowState[] }) {
-  const angles = [-90, 0, 90, 180];
-  const color = (state: RowState) =>
-    state === 'ok' ? 'var(--ok)' : state === 'fail' ? 'var(--fail)' : 'var(--muted)';
+const nav = [
+  { id: 'dashboard', label: 'Resumen', icon: '◫', roles: ['ADMIN', 'TESTER'] },
+  { id: 'orders', label: 'Pedidos', icon: '▤', roles: ['ADMIN', 'TESTER'] },
+  { id: 'production', label: 'Producción', icon: '⌁', roles: ['ADMIN', 'TESTER', 'OPERARIO'] },
+  { id: 'inventory', label: 'Inventario', icon: '▦', roles: ['ADMIN', 'TESTER', 'OPERARIO'] },
+  { id: 'customers', label: 'Clientes', icon: '♙', roles: ['ADMIN', 'TESTER'] },
+  { id: 'products', label: 'Productos', icon: '▧', roles: ['ADMIN', 'TESTER'] },
+  { id: 'settings', label: 'Configuración', icon: '⚙', roles: ['ADMIN', 'TESTER'] },
+  { id: 'users', label: 'Usuarios', icon: '♧', roles: ['ADMIN', 'TESTER'] },
+] satisfies Array<{ id: AppPage; label: string; icon: string; roles: Role[] }>;
+
+function LoginScreen({ onLogin }: { onLogin: (user: User) => void }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setBusy(true); setError('');
+    try {
+      const result = await api<{ user: User }>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }, false);
+      onLogin(result.user);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'No se pudo iniciar sesión.');
+    } finally { setBusy(false); }
+  };
+  return (
+    <main className="login-page">
+      <section className="login-visual" aria-label="Carpintería y producción ordenada">
+        <div className="login-brand"><span className="brand-mark">C<span>°</span></span><span>CARPINTERÍA<br /><b>ORDENADA 360°</b></span></div>
+        <div className="login-story">
+          <p className="eyebrow eyebrow--light">TALLER · PEDIDOS · PRODUCCIÓN</p>
+          <h1>De la primera<br />medida al último<br /><em>acabado.</em></h1>
+          <p>Todo el taller, trabajando en la misma dirección.</p>
+        </div>
+        <div className="woodcut" aria-hidden="true"><span /><span /><span /><span /><span /></div>
+        <div className="login-foot"><span>HECHO PARA EL TRABAJO BIEN HECHO</span><span>LOCAL · V1</span></div>
+      </section>
+      <section className="login-panel">
+        <div className="login-panel__inner">
+          <span className="login-kicker">Bienvenido al taller</span>
+          <h2>Iniciar sesión</h2>
+          <p>Ingresa con tu cuenta local para continuar.</p>
+          <form onSubmit={submit} className="form-stack">
+            <label>Correo electrónico<input type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required /></label>
+            <label>Contraseña<input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} /></label>
+            {error ? <p className="form-error" role="alert">{error}</p> : null}
+            <button className="button button--primary button--wide" disabled={busy}>{busy ? 'Verificando…' : 'Entrar al taller'} <span aria-hidden="true">↗</span></button>
+          </form>
+          <div className="login-note"><span className="status-dot status-dot--green" /> Sesión local protegida</div>
+        </div>
+        <footer className="login-panel__foot">Carpintería Ordenada 360° <span>·</span> Control de taller</footer>
+      </section>
+    </main>
+  );
+}
+
+function Workspace({ user, onLogout }: { user: User; onLogout: () => void }) {
+  const [page, setPage] = useState<AppPage>(user.role === 'OPERARIO' ? 'production' : 'dashboard');
+  const [data, setData] = useState<Record<string, unknown>>({});
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [revision, setRevision] = useState(0);
+  const [pendingJobId, setPendingJobId] = useState<string | null>(null);
+  const allowedNav = useMemo(() => nav.filter((item) => item.roles.some((role) => role === user.role)), [user.role]);
+
+  const load = useCallback(async () => {
+    setLoading(true); setError('');
+    try {
+      let next: Record<string, unknown> = {};
+      if (page === 'dashboard') next = { summary: await api('/dashboard') };
+      if (page === 'inventory') {
+        const [items, pieces, movements, preview] = await Promise.all([
+          api<InventoryItem[]>('/inventory'), api('/inventory/pieces'), api('/inventory/movements'), api('/inventory/import/preview').catch((reason) => ({ previewError: reason instanceof Error ? reason.message : 'No se pudo leer el Excel.' })),
+        ]);
+        next = { items, pieces, movements, ...preview as object };
+      }
+      if (page === 'customers') next = { customers: await api<Customer[]>('/customers') };
+      if (page === 'products') next = { products: await api<Product[]>('/products') };
+      if (page === 'orders') {
+        const [orders, customers, products, inventory, settings] = await Promise.all([
+          api<Order[]>('/orders'), api<Customer[]>('/customers'), api<Product[]>('/products'), api<InventoryItem[]>('/inventory'), api<SettingValues>('/settings'),
+        ]);
+        next = { orders, customers, products, inventory, settings };
+      }
+      if (page === 'production') {
+        const [jobs, inventory, pieces] = await Promise.all([api('/production'), api<InventoryItem[]>('/inventory'), api('/inventory/pieces')]);
+        next = { jobs, inventory, pieces };
+      }
+      if (page === 'settings') next = { settings: await api<SettingValues>('/settings') };
+      if (page === 'users') next = { users: await api('/users') };
+      setData(next);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'No se pudo cargar esta sección.');
+    } finally { setLoading(false); }
+  }, [page, revision]);
+
+  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    const openJob = (event: Event) => {
+      const id = (event as CustomEvent<string>).detail;
+      if (id) { setPendingJobId(id); setPage('production'); }
+    };
+    window.addEventListener('open-production', openJob);
+    return () => window.removeEventListener('open-production', openJob);
+  }, []);
+  const run = async <T,>(action: () => Promise<T>, success: string) => {
+    setBusy(true); setError(''); setNotice('');
+    try {
+      const value = await action();
+      setNotice(success); setRevision((current) => current + 1);
+      return value;
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'La acción no se pudo completar.');
+      return undefined;
+    } finally { setBusy(false); }
+  };
+  const title = allowedNav.find((item) => item.id === page)?.label ?? 'Taller';
 
   return (
-    <svg className="dial" viewBox="0 0 76 76" role="img" aria-hidden="true">
-      <circle cx="38" cy="38" r="31" fill="none" stroke="var(--rule)" strokeWidth="1" />
-      <circle
-        cx="38"
-        cy="38"
-        r="26"
-        fill="none"
-        stroke="var(--rule)"
-        strokeWidth="1"
-        strokeDasharray="2 5"
-      />
-      {angles.map((angle, index) => (
-        <line
-          key={angle}
-          x1="38"
-          y1="4"
-          x2="38"
-          y2="12"
-          stroke={color(states[index] ?? 'wait')}
-          strokeWidth="3"
-          transform={`rotate(${angle} 38 38)`}
-        />
-      ))}
-      <text x="38" y="43" textAnchor="middle" className="dial__label">
-        360°
-      </text>
-    </svg>
+    <div className="workspace">
+      <aside className="sidebar">
+        <a className="app-brand" href="/" aria-label="Ir al resumen">
+          <span className="app-brand__mark">C<span>°</span></span>
+          <span className="app-brand__text"><b>CARPINTERÍA</b><small>ORDENADA 360°</small></span>
+        </a>
+        <div className="sidebar-caption">ESPACIO DE TRABAJO</div>
+        <nav className="side-nav" aria-label="Navegación principal">
+          {allowedNav.map((item) => <button key={item.id} className={`side-link ${page === item.id ? 'is-active' : ''}`} onClick={() => { setPage(item.id); setNotice(''); setError(''); }}><span className="side-link__icon">{item.icon}</span><span>{item.label}</span>{page === item.id ? <span className="side-link__active" /> : null}</button>)}
+        </nav>
+        <div className="sidebar-spacer" />
+        <div className="sidebar-workshop"><span className="workshop-symbol">⌂</span><div><b>Taller principal</b><small>Entorno local</small></div><span className="online-light" title="API conectada" /></div>
+        <div className="sidebar-user"><div className="avatar">{user.name.slice(0, 1).toUpperCase()}</div><div className="sidebar-user__info"><b>{user.name}</b><small>{user.role === 'OPERARIO' ? 'Operario' : user.role === 'TESTER' ? 'Tester' : 'Administrador'}</small></div><button className="icon-button logout-button" title="Cerrar sesión" aria-label="Cerrar sesión" onClick={onLogout}>↗</button></div>
+      </aside>
+      <main className="main-area">
+        <header className="topbar">
+          <div className="breadcrumb"><span>TALLER</span><b>/</b><strong>{title}</strong></div>
+          <div className="topbar__right"><span className="today-label">{new Intl.DateTimeFormat('es-PE', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())}</span><span className="topbar-avatar">{user.name.slice(0, 1).toUpperCase()}</span></div>
+        </header>
+        {notice ? <div className="toast toast--success" role="status"><span>✓</span>{notice}<button onClick={() => setNotice('')} aria-label="Cerrar aviso">×</button></div> : null}
+        {error ? <div className="toast toast--error" role="alert"><span>!</span>{error}<button onClick={() => setError('')} aria-label="Cerrar error">×</button></div> : null}
+        {loading ? <div className="loading-state"><span className="spinner" />Cargando {title.toLowerCase()}…</div> : <div className="page-content">
+          {page === 'dashboard' ? <DashboardScreen data={data.summary as never} onNavigate={setPage} /> : null}
+          {page === 'inventory' ? <InventoryScreen data={data as never} busy={busy} run={run} canManage={user.role !== 'OPERARIO'} /> : null}
+          {page === 'customers' ? <CustomersScreen customers={data.customers as Customer[] ?? []} busy={busy} run={run} /> : null}
+          {page === 'products' ? <ProductsScreen products={data.products as Product[] ?? []} busy={busy} run={run} /> : null}
+          {page === 'orders' ? <OrdersScreen data={data as never} busy={busy} run={run} /> : null}
+          {page === 'production' ? <ProductionScreen jobs={data.jobs as never[] ?? []} inventory={data.inventory as InventoryItem[] ?? []} busy={busy} run={run} initialSelectedId={pendingJobId} /> : null}
+          {page === 'settings' ? <SettingsScreen settings={data.settings as SettingValues | undefined} busy={busy} run={run} /> : null}
+          {page === 'users' ? <UsersScreen users={data.users as never[] ?? []} busy={busy} run={run} /> : null}
+        </div>}
+        <footer className="app-footer"><span>CARPINTERÍA ORDENADA 360° <b>·</b> V1</span><span>Un taller. Un solo flujo.</span></footer>
+      </main>
+    </div>
   );
 }
 
 export default function App() {
-  const [phase, setPhase] = useState<Phase>('checking');
-  const [health, setHealth] = useState<Health | null>(null);
-  const [checkedAt, setCheckedAt] = useState<string>('—');
-  const timer = useRef<number | undefined>(undefined);
-
-  const probe = useCallback(async () => {
-    try {
-      const response = await fetch(`${API_BASE}/health`, {
-        headers: { Accept: 'application/json' },
-      });
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      const data = (await response.json()) as Health;
-      setHealth(data);
-      setPhase('online');
-      setCheckedAt(new Date().toLocaleTimeString('es-ES'));
-    } catch {
-      setHealth(null);
-      setPhase('offline');
-      setCheckedAt(new Date().toLocaleTimeString('es-ES'));
-    }
-  }, []);
+  const trackingToken = window.location.pathname.match(/^\/seguimiento\/([A-Za-z0-9_-]+)\/?$/)?.[1];
+  const [user, setUser] = useState<User | null>(null);
+  const [booting, setBooting] = useState(true);
+  const [revision, setRevision] = useState(0);
 
   useEffect(() => {
-    void probe();
-    timer.current = window.setInterval(() => void probe(), POLL_MS);
-    return () => window.clearInterval(timer.current);
-  }, [probe]);
+    if (trackingToken) { setBooting(false); return; }
+    api<User>('/auth/me').then(setUser).catch(() => setUser(null)).finally(() => setBooting(false));
+  }, [trackingToken, revision]);
 
-  const databaseOk = phase === 'online' && health?.database.connected === true;
-  const excelOk = phase === 'online' && health?.excel.exists === true;
-
-  const rows: Row[] = [
-    { label: 'Frontend', value: 'Online', state: 'ok' },
-    {
-      label: 'Backend',
-      value: phase === 'checking' ? 'Verificando…' : phase === 'online' ? 'Online' : 'Offline',
-      state: phase === 'checking' ? 'wait' : phase === 'online' ? 'ok' : 'fail',
-      detail: `${API_BASE}/health`,
-    },
-    {
-      label: 'PostgreSQL',
-      value:
-        phase === 'checking'
-          ? 'Verificando…'
-          : databaseOk
-            ? 'Connected'
-            : 'Disconnected',
-      state: phase === 'checking' ? 'wait' : databaseOk ? 'ok' : 'fail',
-      detail: health?.database.message,
-    },
-    {
-      label: 'Entorno',
-      value: health?.environment ?? 'LOCAL',
-      state: phase === 'offline' ? 'fail' : 'ok',
-    },
-    {
-      label: 'Excel',
-      value:
-        phase === 'checking' ? 'Verificando…' : excelOk ? 'Found' : 'Missing',
-      state: phase === 'checking' ? 'wait' : excelOk ? 'ok' : 'fail',
-      detail: health?.excel.path,
-    },
-  ];
-
-  const dialStates: RowState[] = [rows[0].state, rows[1].state, rows[2].state, rows[4].state];
-
-  return (
-    <main className="plate">
-      <div className="plate__head">
-        <p className="eyebrow">Foundation · base de datos y servicios</p>
-        <Dial states={dialStates} />
-      </div>
-
-      <h1 className="title">
-        Carpintería Ordenada <span className="title__deg">360°</span>
-      </h1>
-
-      <ul className="checks" aria-live="polite">
-        {rows.map((row) => (
-          <li className="check" key={row.label}>
-            <span className={`dot dot--${row.state}`} aria-hidden="true" />
-            <span className="check__label">{row.label}:</span>
-            <span className="check__value">{row.value}</span>
-            {row.detail ? <span className="check__detail">{row.detail}</span> : null}
-          </li>
-        ))}
-      </ul>
-
-      {phase === 'offline' ? (
-        <div className="alert">
-          <p>No responde {API_BASE}/health. Levanta el stack con Docker.</p>
-          <button type="button" onClick={() => void probe()}>
-            Reintentar
-          </button>
-        </div>
-      ) : null}
-
-      <footer className="plate__foot">
-        <span>Última comprobación {checkedAt}</span>
-        <span>refresco {POLL_MS / 1000}s · GET {API_BASE}/health</span>
-      </footer>
-    </main>
-  );
+  if (trackingToken) return <TrackingScreen token={trackingToken} />;
+  if (booting) return <main className="splash"><span className="app-brand__mark">C<span>°</span></span><span className="spinner" /> Preparando el taller…</main>;
+  if (!user) return <LoginScreen onLogin={(signedIn) => { setUser(signedIn); setRevision((current) => current + 1); }} />;
+  return <Workspace user={user} onLogout={async () => { await api('/auth/logout', { method: 'POST' }).catch(() => undefined); setUser(null); }} />;
 }
