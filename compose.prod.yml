@@ -30,10 +30,18 @@ services:
       PORT: "3000"
       APP_ENV: ${APP_ENV:-LOCAL}
       NODE_ENV: production
+      JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET como secreto aleatorio antes del modo production}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://127.0.0.1:8080,http://localhost:8080}
       DATABASE_URL: postgresql://${POSTGRES_USER:-carpinteria}:${POSTGRES_PASSWORD:-carpinteria_local}@postgres:5432/${POSTGRES_DB:-carpinteria}?schema=public
       BD_PATH: /app/bd/inventario g.xlsx
+      UPLOAD_DIR: /app/uploads
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://127.0.0.1:8080}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
     volumes:
       - ../Bcarpinteria/bd:/app/bd:ro
+      - uploads:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -74,3 +82,5 @@ networks:
 volumes:
   pgdata:
     name: carpinteria_prod_pgdata
+  uploads:
+    name: carpinteria_prod_uploads
