@@ -56,6 +56,8 @@ export function TrackingScreen({ token }: { token: string }) {
       const registration = await navigator.serviceWorker.register('/sw.js');
       let subscription = await registration.pushManager.getSubscription();
       // Browser push subscriptions must survive unmount so updates arrive while this page is closed.
+      // The user can remove one explicitly with the "Desactivar avisos" action below.
+      // react-doctor-disable-next-line react-doctor/effect-needs-cleanup
       if (!subscription) subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: decodeApplicationKey(config.publicKey) });
       await api(`/public/track/${token}/notifications`, { method: 'POST', body: JSON.stringify(subscription.toJSON()) }, false);
       setSubscribed(true); setMessage('Notificaciones activadas para este pedido.');
