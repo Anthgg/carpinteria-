@@ -1,9 +1,13 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { api } from './api';
-import { DashboardScreen, InventoryScreen, CustomersScreen, ProductsScreen, OrdersScreen, SettingsScreen, UsersScreen } from './screens/GeneralScreens';
+import { DashboardScreen, CustomersScreen, ProductsScreen, SettingsScreen, UsersScreen } from './screens/GeneralScreens';
+import { OrdersScreen } from './modules/orders/OrdersScreen';
+import { InventoryScreen } from './modules/inventory/InventoryScreen';
 import { ProductionScreen } from './screens/ProductionScreen';
 import { TrackingScreen } from './screens/TrackingScreen';
+import { AppLink } from './components/ModuleTabs';
+import { APP_NAVIGATION_EVENT, navigateTo } from './navigation';
 
 export type Role = 'TESTER' | 'ADMIN' | 'OPERARIO';
 export type User = { id: string; name: string; email: string; role: Role };
@@ -20,24 +24,70 @@ export type Order = {
   id: string; code: string; customer: Customer; status: string; subtotalCents: number; discountCents: number;
   taxRateBasisPoints: number; taxCents: number; totalCents: number; paidCents: number; paymentStatus: string;
   trackingToken: string; createdAt: string; lines: Array<{ id: string; name: string; type: string; quantity: number; unitPriceCents: number; lineSubtotalCents: number; job?: { id: string; stage: string; status: string; progress: number } | null }>;
+  payments?: Array<{ id: string; amountCents: number; method: string; observation?: string | null; paidAt: string }>;
 };
 export type SettingValues = { taxRate: number; kerfMm: number; companyName: string; companyPhone: string };
 export type AppPage = 'dashboard' | 'inventory' | 'customers' | 'products' | 'orders' | 'production' | 'settings' | 'users';
+export type AppRoute = { page: AppPage; view: string; section: string; id?: string; tab?: string };
 
 const nav = [
   { id: 'dashboard', label: 'Resumen', icon: '◫', roles: ['ADMIN', 'TESTER'] },
   { id: 'orders', label: 'Pedidos', icon: '▤', roles: ['ADMIN', 'TESTER'] },
   { id: 'production', label: 'Producción', icon: '⌁', roles: ['ADMIN', 'TESTER', 'OPERARIO'] },
   { id: 'inventory', label: 'Inventario', icon: '▦', roles: ['ADMIN', 'TESTER', 'OPERARIO'] },
-  { id: 'customers', label: 'Clientes', icon: '♙', roles: ['ADMIN', 'TESTER'] },
-  { id: 'products', label: 'Productos', icon: '▧', roles: ['ADMIN', 'TESTER'] },
   { id: 'settings', label: 'Configuración', icon: '⚙', roles: ['ADMIN', 'TESTER'] },
   { id: 'users', label: 'Usuarios', icon: '♧', roles: ['ADMIN', 'TESTER'] },
 ] satisfies Array<{ id: AppPage; label: string; icon: string; roles: Role[] }>;
 
+export function resolveRoute(path: string): AppRoute {
+  const parts = path.split('?')[0].split('/').filter(Boolean);
+  const [root, first, second] = parts;
+  if (!root || root === 'dashboard') return { page: 'dashboard', view: 'dashboard', section: 'resumen' };
+  if (root === 'pedidos') {
+    if (!first) return { page: 'orders', view: 'list', section: 'pedidos' };
+    if (first === 'nuevo') return { page: 'orders', view: 'create', section: 'pedidos' };
+    if (first === 'cobros') return { page: 'orders', view: 'payments', section: 'cobros' };
+    const tab = ['cobros', 'produccion', 'historial'].includes(second) ? second : 'resumen';
+    return { page: 'orders', view: 'detail', section: 'pedidos', id: first, tab };
+  }
+  if (root === 'clientes') {
+    if (!first) return { page: 'customers', view: 'list', section: 'clientes' };
+    if (first === 'nuevo') return { page: 'customers', view: 'create', section: 'clientes' };
+    return { page: 'customers', view: second === 'editar' ? 'edit' : 'detail', section: 'clientes', id: first };
+  }
+  if (root === 'productos') {
+    if (!first) return { page: 'products', view: 'list', section: 'productos' };
+    if (first === 'nuevo') return { page: 'products', view: 'create', section: 'productos' };
+    return { page: 'products', view: second === 'editar' ? 'edit' : 'detail', section: 'productos', id: first };
+  }
+  if (root === 'inventario') {
+    if (!first) return { page: 'inventory', view: 'list', section: 'articulos' };
+    if (first === 'nuevo') return { page: 'inventory', view: 'create', section: 'articulos' };
+    if (first === 'piezas') return { page: 'inventory', view: second === 'nueva' ? 'newPiece' : 'pieces', section: 'piezas' };
+    if (first === 'movimientos') return { page: 'inventory', view: 'movements', section: 'movimientos' };
+    if (first === 'importar') return { page: 'inventory', view: 'import', section: 'articulos' };
+    return { page: 'inventory', view: second === 'editar' ? 'edit' : second === 'stock' ? 'stock' : 'detail', section: 'articulos', id: first };
+  }
+  if (root === 'produccion') {
+    if (first === 'ordenes') return { page: 'production', view: 'orders', section: 'ordenes' };
+    if (!first) return { page: 'production', view: 'board', section: 'tablero' };
+    return { page: 'production', view: 'detail', section: 'ordenes', id: first, tab: second ?? 'materiales' };
+  }
+  if (root === 'configuracion') return { page: 'settings', view: 'settings', section: first ?? 'taller' };
+  if (root === 'usuarios') {
+    if (!first) return { page: 'users', view: 'list', section: 'usuarios' };
+    if (first === 'nuevo') return { page: 'users', view: 'create', section: 'usuarios' };
+    return { page: 'users', view: 'edit', section: 'usuarios', id: first };
+  }
+  return { page: 'dashboard', view: 'dashboard', section: 'resumen' };
+}
+
+const pagePaths: Record<AppPage, string> = { dashboard: '/', orders: '/pedidos', production: '/produccion', inventory: '/inventario', customers: '/clientes', products: '/productos', settings: '/configuracion/taller', users: '/usuarios' };
+
 function LoginScreen({ onLogin }: { onLogin: (user: User) => void }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const submit = async (event: FormEvent) => {
@@ -53,7 +103,7 @@ function LoginScreen({ onLogin }: { onLogin: (user: User) => void }) {
   return (
     <main className="login-page">
       <section className="login-visual" aria-label="Carpintería y producción ordenada">
-        <div className="login-brand"><span className="brand-mark">C<span>°</span></span><span>CARPINTERÍA<br /><b>ORDENADA 360°</b></span></div>
+        <div className="login-brand"><img className="brand-logo brand-logo--login" src="/brand/carpinteria-360-logo.png" alt="Logo Carpintería Ordenada 360°" /><span>CARPINTERÍA<br /><b>ORDENADA 360°</b></span></div>
         <div className="login-story">
           <p className="eyebrow eyebrow--light">TALLER · PEDIDOS · PRODUCCIÓN</p>
           <h1>De la primera<br />medida al último<br /><em>acabado.</em></h1>
@@ -69,7 +119,7 @@ function LoginScreen({ onLogin }: { onLogin: (user: User) => void }) {
           <p>Ingresa con tu cuenta local para continuar.</p>
           <form onSubmit={submit} className="form-stack">
             <label>Correo electrónico<input type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required /></label>
-            <label>Contraseña<input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} /></label>
+            <label>Contraseña<div className="password-field"><input type={showPassword ? 'text' : 'password'} autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} /><button className="password-toggle" type="button" aria-pressed={showPassword} onClick={() => setShowPassword((value) => !value)}>{showPassword ? 'Ocultar' : 'Mostrar'}</button></div></label>
             {error ? <p className="form-error" role="alert">{error}</p> : null}
             <button type="submit" className="button button--primary button--wide" disabled={busy}>{busy ? 'Verificando…' : 'Entrar al taller'} <span aria-hidden="true">↗</span></button>
           </form>
@@ -84,15 +134,50 @@ function LoginScreen({ onLogin }: { onLogin: (user: User) => void }) {
 const todayDateFormatter = new Intl.DateTimeFormat('es-PE', { weekday: 'long', day: 'numeric', month: 'long' });
 
 function Workspace({ user, onLogout }: { user: User; onLogout: () => void }) {
-  const [page, setPage] = useState<AppPage>(user.role === 'OPERARIO' ? 'production' : 'dashboard');
+  const defaultPath = user.role === 'OPERARIO' ? '/produccion' : '/';
+  const [pathname, setPathname] = useState(() => window.location.pathname === '/' && user.role === 'OPERARIO' ? defaultPath : window.location.pathname);
   const [data, setData] = useState<Record<string, unknown>>({});
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [revision, setRevision] = useState(0);
-  const [pendingJobId, setPendingJobId] = useState<string | null>(null);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const mainRef = useRef<HTMLElement>(null);
+  const lastFocusedPath = useRef('');
+  const route = useMemo(() => resolveRoute(pathname), [pathname]);
+  const page = route.page;
   const allowedNav = useMemo(() => nav.filter((item) => item.roles.some((role) => role === user.role)), [user.role]);
+
+  useEffect(() => {
+    const changeRoute = (event: Event) => {
+      const target = (event as CustomEvent<string>).detail;
+      if (!target || !target.startsWith('/')) return;
+      setPathname(target.split('?')[0]);
+      setNotice(''); setError(''); setMobileNavOpen(false);
+    };
+    const restoreRoute = () => { setPathname(window.location.pathname); setNotice(''); setError(''); };
+    window.addEventListener(APP_NAVIGATION_EVENT, changeRoute);
+    window.addEventListener('popstate', restoreRoute);
+    return () => { window.removeEventListener(APP_NAVIGATION_EVENT, changeRoute); window.removeEventListener('popstate', restoreRoute); };
+  }, []);
+  useEffect(() => {
+    const canOpen = allowedNav.some((item) => item.id === page) || (['customers', 'products'].includes(page) && user.role !== 'OPERARIO');
+    if (!canOpen) navigateTo(defaultPath);
+  }, [allowedNav, defaultPath, page, user.role]);
+  useEffect(() => {
+    if (lastFocusedPath.current === pathname) return;
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  useEffect(() => {
+    if (loading || lastFocusedPath.current === pathname) return;
+    lastFocusedPath.current = pathname;
+    const frame = requestAnimationFrame(() => {
+      const heading = mainRef.current?.querySelector<HTMLElement>('.page-content h1');
+      heading?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [pathname, loading]);
 
   const load = useCallback(async () => {
     setLoading(true); setError('');
@@ -101,11 +186,14 @@ function Workspace({ user, onLogout }: { user: User; onLogout: () => void }) {
       if (page === 'dashboard') next = { summary: await api('/dashboard') };
       if (page === 'inventory') {
         const [items, pieces, movements, preview] = await Promise.all([
-          api<InventoryItem[]>('/inventory'), api('/inventory/pieces'), api('/inventory/movements'), api('/inventory/import/preview').catch((reason) => ({ previewError: reason instanceof Error ? reason.message : 'No se pudo leer el Excel.' })),
+          api<InventoryItem[]>('/inventory'), api('/inventory/pieces'), api('/inventory/movements'), route.view === 'import' ? api('/inventory/import/preview').catch((reason) => ({ previewError: reason instanceof Error ? reason.message : 'No se pudo leer el Excel.' })) : Promise.resolve({}),
         ]);
         next = { items, pieces, movements, ...preview as object };
       }
-      if (page === 'customers') next = { customers: await api<Customer[]>('/customers') };
+      if (page === 'customers') {
+        const [customers, orders] = await Promise.all([api<Customer[]>('/customers'), api<Order[]>('/orders')]);
+        next = { customers, orders };
+      }
       if (page === 'products') next = { products: await api<Product[]>('/products') };
       if (page === 'orders') {
         const [orders, customers, products, inventory, settings] = await Promise.all([
@@ -123,17 +211,9 @@ function Workspace({ user, onLogout }: { user: User; onLogout: () => void }) {
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'No se pudo cargar esta sección.');
     } finally { setLoading(false); }
-  }, [page, revision]);
+  }, [page, revision, route.view]);
 
   useEffect(() => { void load(); }, [load]);
-  useEffect(() => {
-    const openJob = (event: Event) => {
-      const id = (event as CustomEvent<string>).detail;
-      if (id) { setPendingJobId(id); setPage('production'); }
-    };
-    window.addEventListener('open-production', openJob);
-    return () => window.removeEventListener('open-production', openJob);
-  }, []);
   const run = async <T,>(action: () => Promise<T>, success: string) => {
     setBusy(true); setError(''); setNotice('');
     try {
@@ -145,39 +225,105 @@ function Workspace({ user, onLogout }: { user: User; onLogout: () => void }) {
       return undefined;
     } finally { setBusy(false); }
   };
-  const title = allowedNav.find((item) => item.id === page)?.label ?? 'Taller';
+  const items = data.items as InventoryItem[] | undefined;
+  const orders = data.orders as Order[] | undefined;
+  const customers = data.customers as Customer[] | undefined;
+  const products = data.products as Product[] | undefined;
+  const jobs = data.jobs as Array<{ id: string; order?: { code: string }; orderLine?: { name: string } }> | undefined;
+  const sectionNames: Record<string, string> = { resumen: 'Resumen', pedidos: 'Pedidos', cobros: 'Cobros', clientes: 'Clientes', productos: 'Productos', articulos: 'Artículos', piezas: 'Piezas y retazos', movimientos: 'Movimientos', tablero: 'Tablero', ordenes: 'Órdenes', taller: 'Taller', cotizacion: 'Cotización', corte: 'Corte', seguimiento: 'Seguimiento', materiales: 'Materiales y piezas', plano: 'Plano de corte', bitacora: 'Bitácora', incidencias: 'Incidencias y fotos' };
+  const breadcrumbs: Array<{ label: string; href?: string }> = [{ label: 'Taller', href: '/' }];
+  const parentLabel: Partial<Record<AppPage, string>> = { dashboard: 'Resumen', orders: 'Pedidos', inventory: 'Inventario', production: 'Producción', settings: 'Configuración', users: 'Usuarios' };
+  if (page === 'dashboard') breadcrumbs.push({ label: 'Resumen', href: '/' });
+  if (page === 'orders') {
+    breadcrumbs.push({ label: 'Pedidos / Ventas', href: '/pedidos' });
+    if (route.view === 'create') breadcrumbs.push({ label: 'Nuevo pedido' });
+    else if (route.view === 'payments') breadcrumbs.push({ label: 'Cobros', href: '/pedidos/cobros' });
+    else if (route.view === 'detail') {
+      const order = orders?.find((entry) => entry.id === route.id);
+      breadcrumbs.push({ label: order?.code ?? 'Ficha de pedido', href: `/pedidos/${route.id}` });
+      if (route.tab !== 'resumen') breadcrumbs.push({ label: sectionNames[route.tab ?? ''] ?? 'Resumen' });
+    } else breadcrumbs.push({ label: 'Pedidos' });
+  }
+  if (page === 'customers' || page === 'products') {
+    breadcrumbs.push({ label: 'Pedidos / Ventas', href: '/pedidos' });
+    breadcrumbs.push({ label: page === 'customers' ? 'Clientes' : 'Productos', href: pagePaths[page] });
+    if (route.view === 'create') breadcrumbs.push({ label: page === 'customers' ? 'Nuevo cliente' : 'Nuevo producto' });
+    if (route.view === 'detail' || route.view === 'edit') {
+      const record = page === 'customers' ? customers?.find((entry) => entry.id === route.id) : products?.find((entry) => entry.id === route.id);
+      breadcrumbs.push({ label: record?.name ?? 'Ficha', href: `/${page === 'customers' ? 'clientes' : 'productos'}/${route.id}` });
+      if (route.view === 'edit') breadcrumbs.push({ label: 'Editar' });
+    }
+  }
+  if (page === 'inventory') {
+    breadcrumbs.push({ label: 'Inventario', href: '/inventario' });
+    if (route.view === 'pieces' || route.view === 'newPiece') breadcrumbs.push({ label: 'Piezas y retazos', href: '/inventario/piezas' });
+    if (route.view === 'movements') breadcrumbs.push({ label: 'Movimientos', href: '/inventario/movimientos' });
+    if (route.view === 'import') breadcrumbs.push({ label: 'Importar Excel' });
+    if (route.id) {
+      const item = items?.find((entry) => entry.id === route.id);
+      breadcrumbs.push({ label: item?.name ?? 'Artículo', href: `/inventario/${route.id}` });
+      if (route.view === 'edit') breadcrumbs.push({ label: 'Editar' });
+      if (route.view === 'stock') breadcrumbs.push({ label: 'Ajustar stock' });
+    }
+    if (route.view === 'create') breadcrumbs.push({ label: 'Nuevo artículo' });
+    if (route.view === 'newPiece') breadcrumbs.push({ label: 'Registrar pieza física' });
+  }
+  if (page === 'production') {
+    breadcrumbs.push({ label: 'Producción', href: '/produccion' });
+    if (route.view === 'orders') breadcrumbs.push({ label: 'Órdenes' });
+    else if (route.view === 'detail') {
+      const job = jobs?.find((entry) => entry.id === route.id);
+      breadcrumbs.push({ label: job?.order?.code ?? `OP ${route.id?.slice(0, 8).toUpperCase()}`, href: `/produccion/${route.id}/materiales` });
+      if (job?.orderLine?.name) breadcrumbs.push({ label: job.orderLine.name, href: `/produccion/${route.id}/materiales` });
+      if (route.tab && route.tab !== 'materiales') breadcrumbs.push({ label: sectionNames[route.tab] ?? route.tab });
+    } else breadcrumbs.push({ label: 'Tablero' });
+  }
+  if (page === 'settings') {
+    breadcrumbs.push({ label: 'Configuración', href: '/configuracion/taller' });
+    breadcrumbs.push({ label: sectionNames[route.section] ?? 'Taller' });
+  }
+  if (page === 'users') {
+    breadcrumbs.push({ label: 'Usuarios', href: '/usuarios' });
+    if (route.view === 'create') breadcrumbs.push({ label: 'Nuevo usuario' });
+    if (route.view === 'edit') breadcrumbs.push({ label: 'Editar usuario' });
+  }
+  const activeNav = page === 'customers' || page === 'products' ? 'orders' : page;
+  const title = breadcrumbs[breadcrumbs.length - 1]?.label ?? parentLabel[page] ?? 'Taller';
 
   return (
-    <div className="workspace">
-      <aside className="sidebar">
+    <div className={`workspace${mobileNavOpen ? ' workspace--nav-open' : ''}`}>
+      {mobileNavOpen ? <button type="button" className="sidebar-backdrop" aria-label="Cerrar menú" onClick={() => setMobileNavOpen(false)} /> : null}
+      <aside className="sidebar" id="primary-navigation" aria-label="Navegación principal">
         <a className="app-brand" href="/">
-          <span className="app-brand__mark">C<span>°</span></span>
+          <img className="brand-logo brand-logo--sidebar" src="/brand/carpinteria-360-logo.png" alt="" />
           <span className="app-brand__text"><b>CARPINTERÍA</b><small>ORDENADA 360°</small></span>
         </a>
+        <button type="button" className="sidebar-close" aria-label="Cerrar menú" onClick={() => setMobileNavOpen(false)}>×</button>
         <div className="sidebar-caption">ESPACIO DE TRABAJO</div>
         <nav className="side-nav" aria-label="Navegación principal">
-          {allowedNav.map((item) => <button type="button" key={item.id} className={`side-link ${page === item.id ? 'is-active' : ''}`} onClick={() => { setPage(item.id); setNotice(''); setError(''); }}><span className="side-link__icon">{item.icon}</span><span>{item.label}</span>{page === item.id ? <span className="side-link__active" /> : null}</button>)}
+          {allowedNav.map((item) => <AppLink key={item.id} href={pagePaths[item.id]} className={`side-link ${activeNav === item.id ? 'is-active' : ''}`} current={activeNav === item.id} onClick={() => setMobileNavOpen(false)}><span className="side-link__icon">{item.icon}</span><span>{item.label}</span>{activeNav === item.id ? <span className="side-link__active" /> : null}</AppLink>)}
         </nav>
         <div className="sidebar-spacer" />
         <div className="sidebar-workshop"><span className="workshop-symbol">⌂</span><div><b>Taller principal</b><small>Entorno local</small></div><span className="online-light" title="API conectada" /></div>
         <div className="sidebar-user"><div className="avatar">{user.name.slice(0, 1).toUpperCase()}</div><div className="sidebar-user__info"><b>{user.name}</b><small>{user.role === 'OPERARIO' ? 'Operario' : user.role === 'TESTER' ? 'Tester' : 'Administrador'}</small></div><button type="button" className="icon-button logout-button" title="Cerrar sesión" aria-label="Cerrar sesión" onClick={onLogout}>↗</button></div>
       </aside>
-      <main className="main-area">
+      <main className="main-area" ref={mainRef}>
         <header className="topbar">
-          <div className="breadcrumb"><span>TALLER</span><b>/</b><strong>{title}</strong></div>
+          <button type="button" className="menu-toggle" aria-controls="primary-navigation" aria-expanded={mobileNavOpen} aria-label={mobileNavOpen ? 'Cerrar menú' : 'Abrir menú'} onClick={() => setMobileNavOpen((value) => !value)}><span aria-hidden="true">☰</span></button>
+          <nav className="breadcrumb" aria-label="Ruta de navegación">{breadcrumbs.map((crumb, index) => <span className="breadcrumb__item" key={`${crumb.label}-${index}`}>{index ? <b aria-hidden="true">/</b> : null}{crumb.href ? <AppLink href={crumb.href} current={index === breadcrumbs.length - 1}>{crumb.label}</AppLink> : <strong aria-current="page">{crumb.label}</strong>}</span>)}</nav>
           <div className="topbar__right"><span className="today-label">{todayDateFormatter.format(new Date())}</span><span className="topbar-avatar">{user.name.slice(0, 1).toUpperCase()}</span></div>
         </header>
         {notice ? <div className="toast toast--success" role="status"><span>✓</span>{notice}<button type="button" onClick={() => setNotice('')} aria-label="Cerrar aviso">×</button></div> : null}
         {error ? <div className="toast toast--error" role="alert"><span>!</span>{error}<button type="button" onClick={() => setError('')} aria-label="Cerrar error">×</button></div> : null}
         {loading ? <div className="loading-state"><span className="spinner" />Cargando {title.toLowerCase()}…</div> : <div className="page-content">
-          {page === 'dashboard' ? <DashboardScreen data={data.summary as never} onNavigate={setPage} /> : null}
-          {page === 'inventory' ? <InventoryScreen data={data as never} busy={busy} run={run} canManage={user.role !== 'OPERARIO'} /> : null}
-          {page === 'customers' ? <CustomersScreen customers={data.customers as Customer[] ?? []} busy={busy} run={run} /> : null}
-          {page === 'products' ? <ProductsScreen products={data.products as Product[] ?? []} busy={busy} run={run} /> : null}
-          {page === 'orders' ? <OrdersScreen data={data as never} busy={busy} run={run} /> : null}
-          {page === 'production' ? <ProductionScreen jobs={data.jobs as never[] ?? []} inventory={data.inventory as InventoryItem[] ?? []} busy={busy} run={run} initialSelectedId={pendingJobId} /> : null}
-          {page === 'settings' ? <SettingsScreen settings={data.settings as SettingValues | undefined} busy={busy} run={run} /> : null}
-          {page === 'users' ? <UsersScreen users={data.users as never[] ?? []} busy={busy} run={run} /> : null}
+          {page === 'dashboard' ? <DashboardScreen data={data.summary as never} onNavigate={(destination) => navigateTo(pagePaths[destination])} /> : null}
+          {page === 'inventory' ? <InventoryScreen data={data as never} busy={busy} run={run} canManage={user.role !== 'OPERARIO'} route={route} /> : null}
+          {page === 'customers' ? <CustomersScreen customers={customers ?? []} orders={orders ?? []} busy={busy} run={run} route={route} /> : null}
+          {page === 'products' ? <ProductsScreen products={products ?? []} busy={busy} run={run} route={route} /> : null}
+          {page === 'orders' ? <OrdersScreen data={data as never} busy={busy} run={run} route={route} /> : null}
+          {page === 'production' ? <ProductionScreen jobs={data.jobs as never[] ?? []} inventory={data.inventory as InventoryItem[] ?? []} busy={busy} run={run} route={route} /> : null}
+          {page === 'settings' ? <SettingsScreen settings={data.settings as SettingValues | undefined} busy={busy} run={run} route={route} /> : null}
+          {page === 'users' ? <UsersScreen users={data.users as never[] ?? []} busy={busy} run={run} route={route} /> : null}
         </div>}
         <footer className="app-footer"><span>CARPINTERÍA ORDENADA 360° <b>·</b> V1</span><span>Un taller. Un solo flujo.</span></footer>
       </main>
@@ -186,10 +332,25 @@ function Workspace({ user, onLogout }: { user: User; onLogout: () => void }) {
 }
 
 export default function App() {
-  const trackingToken = window.location.pathname.match(/^\/seguimiento\/([A-Za-z0-9_-]+)\/?$/)?.[1];
+  const [pathname, setPathname] = useState(() => window.location.pathname);
+  const trackingToken = pathname.match(/^\/seguimiento\/([A-Za-z0-9_-]+)\/?$/)?.[1];
   const [user, setUser] = useState<User | null>(null);
   const [booting, setBooting] = useState(true);
   const [revision, setRevision] = useState(0);
+
+  useEffect(() => {
+    const changeRoute = (event: Event) => {
+      const target = (event as CustomEvent<string>).detail;
+      if (!target || !target.startsWith('/')) return;
+      if (target !== window.location.pathname) window.history.pushState({}, '', target);
+      setPathname(target.split('?')[0]);
+      if (/^\/seguimiento\//.test(target)) event.stopImmediatePropagation();
+    };
+    const restoreRoute = () => setPathname(window.location.pathname);
+    window.addEventListener(APP_NAVIGATION_EVENT, changeRoute, true);
+    window.addEventListener('popstate', restoreRoute);
+    return () => { window.removeEventListener(APP_NAVIGATION_EVENT, changeRoute, true); window.removeEventListener('popstate', restoreRoute); };
+  }, []);
 
   useEffect(() => {
     if (trackingToken) { setBooting(false); return; }
@@ -197,7 +358,7 @@ export default function App() {
   }, [trackingToken, revision]);
 
   if (trackingToken) return <TrackingScreen token={trackingToken} />;
-  if (booting) return <main className="splash"><span className="app-brand__mark">C<span>°</span></span><span className="spinner" /> Preparando el taller…</main>;
+  if (booting) return <main className="splash"><img className="brand-logo brand-logo--splash" src="/brand/carpinteria-360-logo.png" alt="" /><span className="spinner" /> Preparando el taller…</main>;
   if (!user) return <LoginScreen onLogin={(signedIn) => { setUser(signedIn); setRevision((current) => current + 1); }} />;
   return <Workspace user={user} onLogout={async () => { await api('/auth/logout', { method: 'POST' }).catch(() => undefined); setUser(null); }} />;
 }

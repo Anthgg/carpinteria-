@@ -5,8 +5,8 @@ self.addEventListener('push', (event) => {
   const body = payload.message || 'El avance de tu pedido cambió. Consulta el seguimiento para ver los detalles.';
   event.waitUntil(self.registration.showNotification(title, {
     body,
-    icon: '/favicon.svg',
-    badge: '/favicon.svg',
+    icon: '/brand/carpinteria-360-logo.png',
+    badge: '/brand/carpinteria-360-logo.png',
     data: { url: payload.url || self.location.origin },
   }));
 });
