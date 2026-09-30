@@ -12,17 +12,24 @@ export type DashboardSummary = {
   ordersTrend: { period: DashboardPeriod; startsAt: string; endsAt: string; points: Array<{ date: string; orderCount: number; totalCents: number }> };
 };
 
+const NETWORK_ERROR = 'No se pudo conectar con el servidor del taller. Revisa la conexión e inténtalo de nuevo.';
+const SERVER_ERROR = 'El servidor no pudo completar la solicitud. Inténtalo de nuevo en unos segundos.';
+
 async function rawRequest(path: string, init: RequestInit = {}) {
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    credentials: 'include',
-    headers: {
-      Accept: 'application/json',
-      ...(init.body && !(init.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}),
-      ...init.headers,
-    },
-  });
-  return response;
+  try {
+    return await fetch(`${API_BASE}${path}`, {
+      ...init,
+      credentials: 'include',
+      headers: {
+        Accept: 'application/json',
+        ...(init.body && !(init.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}),
+        ...init.headers,
+      },
+    });
+  } catch {
+    // "Failed to fetch" no le dice nada al operario.
+    throw new Error(NETWORK_ERROR);
+  }
 }
 
 export async function api<T = unknown>(path: string, init: RequestInit = {}, retry = true): Promise<T> {
@@ -34,7 +41,9 @@ export async function api<T = unknown>(path: string, init: RequestInit = {}, ret
   if (!response.ok) {
     const body = await response.json().catch(() => null) as { message?: string | string[] } | null;
     const message = Array.isArray(body?.message) ? body?.message.join(' ') : body?.message;
-    throw new Error(message || `La solicitud falló (${response.status}).`);
+    // Los 5xx llegan con textos técnicos ("Internal server error"); los 4xx traen el mensaje de negocio en español.
+    if (response.status >= 500) throw new Error(SERVER_ERROR);
+    throw new Error(message || `La solicitud no se pudo completar (${response.status}).`);
   }
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
@@ -46,7 +55,7 @@ export async function download(path: string, filename: string) {
     const refreshed = await rawRequest('/auth/refresh', { method: 'POST' });
     if (refreshed.ok) response = await rawRequest(path);
   }
-  if (!response.ok) throw new Error(`No se pudo descargar el PDF (${response.status}).`);
+  if (!response.ok) throw new Error(response.status >= 500 ? 'No se pudo generar la ficha PDF. Inténtalo de nuevo en unos segundos.' : 'No tienes acceso a esta ficha PDF o ya no existe.');
   const url = URL.createObjectURL(await response.blob());
   const anchor = document.createElement('a');
   anchor.href = url;
