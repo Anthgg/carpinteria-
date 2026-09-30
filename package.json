@@ -10,9 +10,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@gravity-ui/icons": "2.22.0",
     "@heroui/react": "^3.2.6",
     "@heroui/styles": "^3.2.6",
-    "@untitledui/icons": "^0.0.23",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "uplot": "^1.6.32"
