@@ -38,11 +38,15 @@ const STATE_LABELS: Record<string, [string, string]> = {
 };
 
 type Action = { href: string; label: string };
-function actionsFor(reason: UnplacedReason, materialId: string, jobId: string, canManage: boolean, canEdit: boolean): Action[] {
+/** Piezas que el operario puede corregir desde Materiales y piezas (resaltadas al llegar). */
+const EDITABLE_REASONS: UnplacedReason[] = ['THICKNESS_MISMATCH', 'DIMENSIONS_TOO_LARGE'];
+const reviewHref = (jobId: string, requirementIds: string[]) => `/produccion/${jobId}/materiales?piezas=${[...new Set(requirementIds)].join(',')}`;
+
+function actionsFor(reason: UnplacedReason, materialId: string, jobId: string, canManage: boolean, canEdit: boolean, affected: string[]): Action[] {
   const inventory = { href: `/inventario/${materialId}`, label: 'Ver inventario del material' };
   const pieces = { href: '/inventario/piezas', label: 'Ver piezas y retazos' };
   const register = { href: `/inventario/piezas/nueva?material=${materialId}`, label: 'Registrar pieza física' };
-  const materials = (label: string) => ({ href: `/produccion/${jobId}/materiales`, label });
+  const materials = (label: string) => ({ href: reviewHref(jobId, affected), label });
   switch (reason) {
     case 'NO_PHYSICAL_STOCK': return [inventory, ...(canManage ? [register] : [])];
     case 'STOCK_RESERVED':
@@ -82,7 +86,11 @@ export function CuttingDiagnosis({ diagnostics, legacyUnplaced, jobId, canManage
   const primary = diagnostics.primaryReason ?? 'UNKNOWN';
   const primaryGroup = diagnostics.groups.find((group) => group.reason === primary);
   const actions = new Map<string, Action>();
-  for (const group of diagnostics.groups) for (const action of actionsFor(group.reason, group.materialId, jobId, canManage, canEdit)) actions.set(action.href, action);
+  for (const group of diagnostics.groups) {
+    const affected = diagnostics.groups.filter((entry) => entry.reason === group.reason).map((entry) => entry.requirementId);
+    for (const action of actionsFor(group.reason, group.materialId, jobId, canManage, canEdit, affected)) actions.set(action.label, action);
+  }
+  const canReview = (group: UnplacedGroup) => canEdit && EDITABLE_REASONS.includes(group.reason);
 
   return <Alert.Root status={tone === 'error' ? 'danger' : 'warning'} className={`cut-diagnosis cut-diagnosis--${tone}`} role="alert">
     <Alert.Indicator className="cut-diagnosis__icon" />
@@ -115,12 +123,13 @@ export function CuttingDiagnosis({ diagnostics, legacyUnplaced, jobId, canManage
 
       <div className="cut-diagnosis__table table-wrap">
         <table>
-          <thead><tr><th>Pieza</th><th>Largo × Ancho × Alto</th><th>Pendientes</th><th>Motivo</th></tr></thead>
+          <thead><tr><th>Pieza</th><th>Largo × Ancho × Alto</th><th>Pendientes</th><th>Motivo</th>{diagnostics.groups.some(canReview) ? <th><span className="sr-only">Acción</span></th> : null}</tr></thead>
           <tbody>{diagnostics.groups.map((group) => <tr key={`${group.requirementId}-${group.reason}`}>
             <td data-label="Pieza"><b>{group.label}</b><small>{group.materialName}</small></td>
             <td data-label="Medida" className="mono">{formatDimensions(group.lengthMm, group.widthMm, group.thicknessMm)}</td>
             <td data-label="Pendientes"><b>{group.pending}</b><small>de {group.requested}{group.placed ? ` · ${group.placed} ubicadas` : ''}</small></td>
             <td data-label="Motivo"><span className={`cut-reason cut-reason--${group.reason.toLowerCase().replaceAll('_', '-')}`}>{REASON_TITLES[group.reason]}</span><small>{group.reasonDetails}</small></td>
+            {diagnostics.groups.some(canReview) ? <td data-label="Acción">{canReview(group) ? <AppLink className="text-button" href={reviewHref(jobId, [group.requirementId])} aria-label={`Revisar la pieza ${group.label}`}>Revisar →</AppLink> : null}</td> : null}
           </tr>)}</tbody>
         </table>
       </div>

@@ -21,14 +21,3 @@ export type PhysicalPiece = {
   id: string; code: string; kind: string; state: string; materialId: string;
   lengthMm: number; widthMm: number; thicknessMm: number;
 };
-
-/** Resumen de las piezas físicas AVAILABLE de un material, agrupadas por alto (espesor). */
-export function availableStock(pieces: PhysicalPiece[], materialId: string) {
-  const available = pieces
-    .filter((piece) => piece.materialId === materialId && piece.state === 'AVAILABLE')
-    .sort((a, b) => b.lengthMm * b.widthMm - a.lengthMm * a.widthMm);
-  const byThickness = new Map<number, PhysicalPiece[]>();
-  for (const piece of available) byThickness.set(piece.thicknessMm, [...(byThickness.get(piece.thicknessMm) ?? []), piece]);
-  const thicknesses = [...byThickness.keys()].sort((a, b) => a - b);
-  return { available, byThickness, thicknesses };
-}

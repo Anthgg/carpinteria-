@@ -214,8 +214,9 @@ function Workspace({ user, onLogout }: { user: User; onLogout: () => void }) {
         next = { orders, customers, products, inventory, settings };
       }
       if (page === 'production') {
-        const [jobs, inventory, pieces] = await Promise.all([api('/production'), api<InventoryItem[]>('/inventory'), api('/inventory/pieces')]);
-        next = { jobs, inventory, pieces };
+        // Disponibilidad agregada (una sola consulta) para los selectores; se recarga tras reservar, liberar o cortar.
+        const [jobs, availability, pieces] = await Promise.all([api('/production'), api('/inventory/material-availability'), api('/inventory/pieces')]);
+        next = { jobs, availability, pieces };
       }
       if (page === 'settings') next = { settings: await api<SettingValues>('/settings') };
       if (page === 'users') next = { users: await api('/users') };
@@ -354,7 +355,7 @@ function Workspace({ user, onLogout }: { user: User; onLogout: () => void }) {
           {page === 'customers' ? <CustomersScreen customers={customers ?? []} orders={orders ?? []} busy={busy} run={run} route={route} /> : null}
           {page === 'products' ? <ProductsScreen products={products ?? []} busy={busy} run={run} route={route} /> : null}
           {page === 'orders' ? <OrdersScreen data={data as never} busy={busy} run={run} route={route} /> : null}
-          {page === 'production' ? <ProductionScreen jobs={data.jobs as never[] ?? []} inventory={data.inventory as InventoryItem[] ?? []} pieces={data.pieces as never[] ?? []} canManage={user.role !== 'OPERARIO'} busy={busy} run={run} route={route} /> : null}
+          {page === 'production' ? <ProductionScreen jobs={data.jobs as never[] ?? []} availability={data.availability as never ?? { lowStockThreshold: 5, items: [] }} pieces={data.pieces as never[] ?? []} canManage={user.role !== 'OPERARIO'} busy={busy} run={run} route={route} /> : null}
           {page === 'settings' ? <SettingsScreen settings={data.settings as SettingValues | undefined} busy={busy} run={run} route={route} /> : null}
           {page === 'users' ? <UsersScreen users={data.users as never[] ?? []} busy={busy} run={run} route={route} /> : null}
         </div>}
