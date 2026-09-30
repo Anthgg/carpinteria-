@@ -1,8 +1,10 @@
-import { Children, isValidElement, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { Children, isValidElement, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent, ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 
 type Option = { value: string; label: string; disabled: boolean };
 type Change = { target: { value: string } };
+type PopupLayout = { top: number; left: number; width: number; maxHeight: number; optionsMaxHeight: number };
 export type SelectFieldProps = {
   name?: string;
   value?: string;
@@ -26,6 +28,7 @@ export function SelectField({ name, value, defaultValue, onChange, children, cla
   const id = useId().replaceAll(':', '');
   const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
+  const popupRef = useRef<HTMLDivElement>(null);
   const searchInput = useRef<HTMLInputElement>(null);
   const controlled = value !== undefined;
   const options = useMemo(() => Children.toArray(children).flatMap((child) => {
@@ -37,6 +40,7 @@ export function SelectField({ name, value, defaultValue, onChange, children, cla
   const [uncontrolledValue, setUncontrolledValue] = useState(defaultValue ?? options[0]?.value ?? '');
   const selectedValue = controlled ? String(value ?? '') : uncontrolledValue;
   const [open, setOpen] = useState(false);
+  const [popupLayout, setPopupLayout] = useState<PopupLayout | null>(null);
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
   const [invalid, setInvalid] = useState(false);
@@ -53,9 +57,65 @@ export function SelectField({ name, value, defaultValue, onChange, children, cla
     const controlText = trigger.current?.textContent?.trim() ?? '';
     setInferredLabel(label?.textContent?.replace(controlText, '').trim() ?? '');
   }, [selected?.label]);
+  useLayoutEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    const updatePosition = () => {
+      const anchor = trigger.current;
+      const popup = popupRef.current;
+      if (!anchor || !popup) return;
+
+      const anchorRect = anchor.getBoundingClientRect();
+      const viewport = window.visualViewport;
+      const viewportLeft = viewport?.offsetLeft ?? 0;
+      const viewportTop = viewport?.offsetTop ?? 0;
+      const viewportWidth = viewport?.width ?? window.innerWidth;
+      const viewportHeight = viewport?.height ?? window.innerHeight;
+      const edge = 10;
+      const gap = 5;
+      const width = Math.min(Math.max(anchorRect.width, 220), Math.max(200, viewportWidth - edge * 2));
+      const left = Math.min(Math.max(viewportLeft + edge, anchorRect.left), viewportLeft + viewportWidth - width - edge);
+      const desiredHeight = Math.min(popup.scrollHeight, 320);
+      const below = Math.max(0, viewportTop + viewportHeight - anchorRect.bottom - gap - edge);
+      const above = Math.max(0, anchorRect.top - viewportTop - gap - edge);
+      const openAbove = below < desiredHeight && above > below;
+      const available = openAbove ? above : below;
+      const maxHeight = Math.max(64, Math.min(desiredHeight || 64, available || 64));
+      const unclampedTop = openAbove ? anchorRect.top - gap - maxHeight : anchorRect.bottom + gap;
+      const top = Math.min(Math.max(viewportTop + edge, unclampedTop), viewportTop + viewportHeight - edge - maxHeight);
+      const fixedHeight = (searchable ? 56 : 14) + 2;
+      const optionsMaxHeight = Math.max(32, maxHeight - fixedHeight);
+
+      setPopupLayout((current) => current && current.top === top && current.left === left && current.width === width && current.maxHeight === maxHeight && current.optionsMaxHeight === optionsMaxHeight
+        ? current
+        : { top, left, width, maxHeight, optionsMaxHeight });
+    };
+
+    updatePosition();
+    const visualViewport = window.visualViewport;
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+    visualViewport?.addEventListener('resize', updatePosition);
+    visualViewport?.addEventListener('scroll', updatePosition);
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(updatePosition);
+    if (trigger.current) observer?.observe(trigger.current);
+
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+      visualViewport?.removeEventListener('resize', updatePosition);
+      visualViewport?.removeEventListener('scroll', updatePosition);
+      observer?.disconnect();
+    };
+  }, [open, visibleOptions.length, searchable]);
   useEffect(() => {
     if (!open) return;
-    const closeOutside = (event: PointerEvent) => { if (!root.current?.contains(event.target as Node)) setOpen(false); };
+    const closeOutside = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (!root.current?.contains(target) && !popupRef.current?.contains(target)) setOpen(false);
+    };
     document.addEventListener('pointerdown', closeOutside);
     return () => document.removeEventListener('pointerdown', closeOutside);
   }, [open]);
@@ -116,20 +176,22 @@ export function SelectField({ name, value, defaultValue, onChange, children, cla
     }
   };
 
-  return <div ref={root} className={`select-field${open ? ' is-open' : ''}${invalid ? ' has-error' : ''}${disabled ? ' is-disabled' : ''}${className ? ` ${className}` : ''}`}>
-    {name ? <input type="hidden" name={name} value={selectedValue} disabled={disabled} /> : null}
-    <button ref={trigger} type="button" className="select-field__trigger" role="combobox" aria-haspopup="listbox" aria-expanded={open} aria-controls={`${id}-listbox`} aria-activedescendant={open && visibleOptions[activeIndex] ? `${id}-option-${activeIndex}` : undefined} aria-label={(ariaLabel ?? inferredLabel) || 'Seleccionar opción'} aria-required={required || undefined} aria-invalid={invalid || undefined} aria-describedby={descriptionId} disabled={disabled} onClick={() => { setOpen((current) => !current); setQuery(''); const selectedIndex = visibleOptions.findIndex((option) => option.value === selectedValue); setActiveIndex(selectedIndex >= 0 && !visibleOptions[selectedIndex].disabled ? selectedIndex : firstEnabledIndex); }} onKeyDown={onKeyDown}>
-      <span className={selected ? '' : 'select-field__placeholder'}>{selected?.label || placeholder}</span><span className="select-field__chevron" aria-hidden="true">⌄</span>
-    </button>
-    {open ? <div className="select-field__popup">
+  return <>
+    <div ref={root} className={`select-field${open ? ' is-open' : ''}${invalid ? ' has-error' : ''}${disabled ? ' is-disabled' : ''}${className ? ` ${className}` : ''}`}>
+      {name ? <input type="hidden" name={name} value={selectedValue} disabled={disabled} /> : null}
+      <button ref={trigger} type="button" className="select-field__trigger" role="combobox" aria-haspopup="listbox" aria-expanded={open} aria-controls={`${id}-listbox`} aria-activedescendant={open && visibleOptions[activeIndex] ? `${id}-option-${activeIndex}` : undefined} aria-label={(ariaLabel ?? inferredLabel) || 'Seleccionar opción'} aria-required={required || undefined} aria-invalid={invalid || undefined} aria-describedby={descriptionId} disabled={disabled} onClick={() => { setOpen((current) => !current); setQuery(''); const selectedIndex = visibleOptions.findIndex((option) => option.value === selectedValue); setActiveIndex(selectedIndex >= 0 && !visibleOptions[selectedIndex].disabled ? selectedIndex : firstEnabledIndex); }} onKeyDown={onKeyDown}>
+        <span className={selected ? '' : 'select-field__placeholder'}>{selected?.label || placeholder}</span><span className="select-field__chevron" aria-hidden="true">⌄</span>
+      </button>
+      {descriptionId ? <span className="select-field__error" id={descriptionId} role="alert">Selecciona una opción.</span> : null}
+    </div>
+    {open && typeof document !== 'undefined' ? createPortal(<div ref={popupRef} className="select-field__popup" style={{ top: popupLayout?.top ?? 0, left: popupLayout?.left ?? 0, width: popupLayout?.width, maxHeight: popupLayout?.maxHeight, visibility: popupLayout ? 'visible' : 'hidden' }}>
       {searchable ? <input ref={searchInput} className="select-field__search" value={query} onChange={(event) => { const nextQuery = event.target.value; const matches = optionList.filter((option) => option.label.toLocaleLowerCase().includes(nextQuery.toLocaleLowerCase())); setQuery(nextQuery); setActiveIndex(Math.max(0, matches.findIndex((option) => !option.disabled))); }} onKeyDown={(event) => { if (event.key === 'Escape') { event.preventDefault(); setOpen(false); setQuery(''); trigger.current?.focus(); } else if (event.key === 'ArrowDown') { event.preventDefault(); move(1); } else if (event.key === 'ArrowUp') { event.preventDefault(); move(-1); } else if (event.key === 'Enter') { event.preventDefault(); const option = visibleOptions[activeIndex]; if (option) choose(option); } }} placeholder="Buscar opción…" aria-label={ariaLabel ? `Buscar ${ariaLabel.toLowerCase()}` : 'Buscar opción'} /> : null}
-      <ul className="select-field__options" id={`${id}-listbox`} role="listbox" aria-label={ariaLabel ?? 'Opciones'}>
+      <ul className="select-field__options" id={`${id}-listbox`} role="listbox" aria-label={ariaLabel ?? 'Opciones'} style={{ maxHeight: popupLayout?.optionsMaxHeight }}>
         {visibleOptions.map((option, index) => <li id={`${id}-option-${index}`} key={`${option.value}-${index}`} role="option" aria-selected={option.value === selectedValue} aria-disabled={option.disabled || undefined} className={`select-field__option${option.value === selectedValue ? ' is-selected' : ''}${activeIndex === index ? ' is-active' : ''}${option.disabled ? ' is-disabled' : ''}`} onMouseEnter={() => setActiveIndex(index)} onMouseDown={(event) => { event.preventDefault(); event.stopPropagation(); }} onClick={(event) => { event.preventDefault(); event.stopPropagation(); choose(option); }}>{option.label}<span aria-hidden="true">{option.value === selectedValue ? '✓' : ''}</span></li>)}
         {!visibleOptions.length ? <li className="select-field__empty">No hay coincidencias</li> : null}
       </ul>
-    </div> : null}
-    {descriptionId ? <span className="select-field__error" id={descriptionId} role="alert">Selecciona una opción.</span> : null}
-  </div>;
+    </div>, document.body) : null}
+  </>;
 }
 
 export function SearchSelect(props: Omit<SelectFieldProps, 'searchable'>) {
