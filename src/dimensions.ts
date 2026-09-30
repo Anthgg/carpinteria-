@@ -7,15 +7,16 @@
  *
  * No existe una cuarta dimensión "Espesor": el motor de corte compara el alto de la pieza con el de la tabla.
  */
+import { unitLabel } from './units';
+
 export type DimensionUnit = 'mm' | 'cm' | 'm';
 
 export const formatDimensions = (lengthMm: number, widthMm: number, thicknessMm: number) => `${lengthMm} × ${widthMm} × ${thicknessMm} mm`;
 
 export const fromMillimeters = (value: number, unit: DimensionUnit) => String(value / (unit === 'm' ? 1000 : unit === 'cm' ? 10 : 1));
 
-/** "26 unidades", "1 unidad", "4 tablon": unidad de stock suelto legible. */
-export const stockQuantity = (quantity: number, unit: string) =>
-  `${quantity} ${unit === 'UNIDAD' ? (quantity === 1 ? 'unidad' : 'unidades') : unit.toLowerCase()}`;
+/** "26 unidades", "1 unidad", "4 tablones": cantidad de stock con la etiqueta del catálogo de unidades. */
+export const stockQuantity = (quantity: number, unit: string) => `${quantity} ${unitLabel(unit, quantity)}`;
 
 export type PhysicalPiece = {
   id: string; code: string; kind: string; state: string; materialId: string;
