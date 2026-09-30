@@ -55,7 +55,7 @@ export function InventoryScreen({ data, busy, run, canManage = true }: { data: {
     const result = await run(() => api(`/inventory/items${editingItem ? `/${editingItem.id}` : ''}`, { method: editingItem ? 'PUT' : 'POST', body: JSON.stringify({
       name: form.get('name'), type: form.get('type'), unit: form.get('unit'), stock: Number(form.get('stock') || 0), unitPrice: Number(form.get('unitPrice') || 0),
       sellable: form.get('sellable') === 'on', controlsStock: form.get('controlsStock') === 'on', productionConsumable: form.get('productionConsumable') === 'on',
-      requiresDimensions: form.get('requiresDimensions') === 'on', lengthMm: toMillimeters(String(form.get('lengthMm') || '0'), dimensionUnit), widthMm: toMillimeters(String(form.get('widthMm') || '0'), dimensionUnit), thicknessMm: toMillimeters(String(form.get('thicknessMm') || '0'), dimensionUnit), description: form.get('description'),
+      requiresDimensions: form.get('requiresDimensions') === 'on', lengthMm: String(form.get('lengthMm') || '').trim() ? toMillimeters(String(form.get('lengthMm')), dimensionUnit) : null, widthMm: String(form.get('widthMm') || '').trim() ? toMillimeters(String(form.get('widthMm')), dimensionUnit) : null, thicknessMm: String(form.get('thicknessMm') || '').trim() ? toMillimeters(String(form.get('thicknessMm')), dimensionUnit) : null, description: form.get('description'),
     }) }), editingItem ? 'Ficha de artículo actualizada.' : 'Artículo agregado al inventario.');
     if (result) { setShowItemForm(false); setEditingItem(null); event.currentTarget.reset(); }
   };
