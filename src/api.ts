@@ -1,5 +1,17 @@
 const API_BASE = (import.meta.env.VITE_API_BASE ?? '/api').replace(/\/$/, '');
 
+export type DashboardPeriod = '7d' | '30d' | 'month';
+export type DashboardSummary = {
+  activeOrders: number;
+  readyOrders: number;
+  openIncidents: number;
+  productionByStage: Array<{ stage: string; count: number }>;
+  lowStock: Array<{ id: string; name: string; type: string; unit: string; stock: number; availablePieces: number }>;
+  recentMovements: Array<{ id: string; action: string; itemName: string; note?: string | null; createdAt: string }>;
+  period: { startsAt: string; orders: number; orderTotalCents: number };
+  ordersTrend: { period: DashboardPeriod; startsAt: string; endsAt: string; points: Array<{ date: string; orderCount: number; totalCents: number }> };
+};
+
 async function rawRequest(path: string, init: RequestInit = {}) {
   const response = await fetch(`${API_BASE}${path}`, {
     ...init,

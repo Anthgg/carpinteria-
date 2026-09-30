@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { FormEvent } from 'react';
+import type { ElementType, FormEvent } from 'react';
+import { Drawer } from '@heroui/react/drawer';
+import { Toast } from '@heroui/react/toast';
+import { Tooltip } from '@heroui/react/tooltip';
+import { AlertCircle, Home01, LogOut01, Menu01, Package, Scissors01, Settings01, ShoppingBag02, Users01, XClose } from '@untitledui/icons';
 import { api } from './api';
-import { DashboardScreen, CustomersScreen, ProductsScreen, SettingsScreen, UsersScreen } from './screens/GeneralScreens';
+import type { DashboardPeriod, DashboardSummary } from './api';
+import { DashboardScreen, DashboardSkeleton, CustomersScreen, ProductsScreen, SettingsScreen, UsersScreen } from './screens/GeneralScreens';
 import { OrdersScreen } from './modules/orders/OrdersScreen';
 import { InventoryScreen } from './modules/inventory/InventoryScreen';
 import { ProductionScreen } from './screens/ProductionScreen';
@@ -31,13 +36,13 @@ export type AppPage = 'dashboard' | 'inventory' | 'customers' | 'products' | 'or
 export type AppRoute = { page: AppPage; view: string; section: string; id?: string; tab?: string };
 
 const nav = [
-  { id: 'dashboard', label: 'Resumen', icon: '◫', roles: ['ADMIN', 'TESTER'] },
-  { id: 'orders', label: 'Pedidos', icon: '▤', roles: ['ADMIN', 'TESTER'] },
-  { id: 'production', label: 'Producción', icon: '⌁', roles: ['ADMIN', 'TESTER', 'OPERARIO'] },
-  { id: 'inventory', label: 'Inventario', icon: '▦', roles: ['ADMIN', 'TESTER', 'OPERARIO'] },
-  { id: 'settings', label: 'Configuración', icon: '⚙', roles: ['ADMIN', 'TESTER'] },
-  { id: 'users', label: 'Usuarios', icon: '♧', roles: ['ADMIN', 'TESTER'] },
-] satisfies Array<{ id: AppPage; label: string; icon: string; roles: Role[] }>;
+  { id: 'dashboard', label: 'Resumen', icon: Home01, roles: ['ADMIN', 'TESTER'] },
+  { id: 'orders', label: 'Pedidos', icon: ShoppingBag02, roles: ['ADMIN', 'TESTER'] },
+  { id: 'production', label: 'Producción', icon: Scissors01, roles: ['ADMIN', 'TESTER', 'OPERARIO'] },
+  { id: 'inventory', label: 'Inventario', icon: Package, roles: ['ADMIN', 'TESTER', 'OPERARIO'] },
+  { id: 'settings', label: 'Configuración', icon: Settings01, roles: ['ADMIN', 'TESTER'] },
+  { id: 'users', label: 'Usuarios', icon: Users01, roles: ['ADMIN', 'TESTER'] },
+] satisfies Array<{ id: AppPage; label: string; icon: ElementType; roles: Role[] }>;
 
 export function resolveRoute(path: string): AppRoute {
   const parts = path.split('?')[0].split('/').filter(Boolean);
@@ -140,9 +145,16 @@ function Workspace({ user, onLogout }: { user: User; onLogout: () => void }) {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
   const [revision, setRevision] = useState(0);
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [dashboardPeriod, setDashboardPeriod] = useState<DashboardPeriod>('month');
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const mobileDrawer = useMemo(() => ({
+    isOpen: drawerOpen,
+    setOpen: setDrawerOpen,
+    open: () => setDrawerOpen(true),
+    close: () => setDrawerOpen(false),
+    toggle: () => setDrawerOpen((open) => !open),
+  }), [drawerOpen]);
   const mainRef = useRef<HTMLElement>(null);
   const lastFocusedPath = useRef('');
   const route = useMemo(() => resolveRoute(pathname), [pathname]);
@@ -154,13 +166,13 @@ function Workspace({ user, onLogout }: { user: User; onLogout: () => void }) {
       const target = (event as CustomEvent<string>).detail;
       if (!target || !target.startsWith('/')) return;
       setPathname(target.split('?')[0]);
-      setNotice(''); setError(''); setMobileNavOpen(false);
+      setError(''); mobileDrawer.close();
     };
-    const restoreRoute = () => { setPathname(window.location.pathname); setNotice(''); setError(''); };
+    const restoreRoute = () => { setPathname(window.location.pathname); setError(''); mobileDrawer.close(); };
     window.addEventListener(APP_NAVIGATION_EVENT, changeRoute);
     window.addEventListener('popstate', restoreRoute);
     return () => { window.removeEventListener(APP_NAVIGATION_EVENT, changeRoute); window.removeEventListener('popstate', restoreRoute); };
-  }, []);
+  }, [mobileDrawer.close]);
   useEffect(() => {
     const canOpen = allowedNav.some((item) => item.id === page) || (['customers', 'products'].includes(page) && user.role !== 'OPERARIO');
     if (!canOpen) navigateTo(defaultPath);
@@ -183,7 +195,7 @@ function Workspace({ user, onLogout }: { user: User; onLogout: () => void }) {
     setLoading(true); setError('');
     try {
       let next: Record<string, unknown> = {};
-      if (page === 'dashboard') next = { summary: await api('/dashboard') };
+      if (page === 'dashboard') next = { summary: await api<DashboardSummary>(`/dashboard?period=${dashboardPeriod}`) };
       if (page === 'inventory') {
         const [items, pieces, movements, preview] = await Promise.all([
           api<InventoryItem[]>('/inventory'), api('/inventory/pieces'), api('/inventory/movements'), route.view === 'import' ? api('/inventory/import/preview').catch((reason) => ({ previewError: reason instanceof Error ? reason.message : 'No se pudo leer el Excel.' })) : Promise.resolve({}),
@@ -211,17 +223,17 @@ function Workspace({ user, onLogout }: { user: User; onLogout: () => void }) {
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'No se pudo cargar esta sección.');
     } finally { setLoading(false); }
-  }, [page, revision, route.view]);
+  }, [dashboardPeriod, page, revision, route.view]);
 
   useEffect(() => { void load(); }, [load]);
   const run = async <T,>(action: () => Promise<T>, success: string) => {
-    setBusy(true); setError(''); setNotice('');
+    setBusy(true); setError('');
     try {
       const value = await action();
-      setNotice(success); setRevision((current) => current + 1);
+      Toast.toast.success(success, { timeout: 3600 }); setRevision((current) => current + 1);
       return value;
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'La acción no se pudo completar.');
+      Toast.toast.danger(reason instanceof Error ? reason.message : 'La acción no se pudo completar.', { timeout: 5200 });
       return undefined;
     } finally { setBusy(false); }
   };
@@ -289,34 +301,55 @@ function Workspace({ user, onLogout }: { user: User; onLogout: () => void }) {
   }
   const activeNav = page === 'customers' || page === 'products' ? 'orders' : page;
   const title = breadcrumbs[breadcrumbs.length - 1]?.label ?? parentLabel[page] ?? 'Taller';
+  const navLinks = allowedNav.map((item) => {
+    const Icon = item.icon;
+    return <AppLink key={item.id} href={pagePaths[item.id]} className={`side-link ${activeNav === item.id ? 'is-active' : ''}`} current={activeNav === item.id} onClick={() => mobileDrawer.close()}>
+      <span className="side-link__icon"><Icon size={17} aria-hidden="true" /></span><span>{item.label}</span>{activeNav === item.id ? <span className="side-link__active" /> : null}
+    </AppLink>;
+  });
 
   return (
-    <div className={`workspace${mobileNavOpen ? ' workspace--nav-open' : ''}`}>
-      {mobileNavOpen ? <button type="button" className="sidebar-backdrop" aria-label="Cerrar menú" onClick={() => setMobileNavOpen(false)} /> : null}
+    <div className="workspace">
+      <Toast.Provider placement="top end" />
+      <Drawer.Root state={mobileDrawer}>
+        <Drawer.Backdrop className="mobile-drawer__backdrop">
+          <Drawer.Content placement="left" className="mobile-drawer__content">
+            <Drawer.Dialog aria-label="Navegación principal" className="mobile-drawer__dialog">
+              <aside className="sidebar sidebar--mobile" id="mobile-primary-navigation" aria-label="Navegación principal">
+                <a className="app-brand" href="/" onClick={() => mobileDrawer.close()}>
+                  <img className="brand-logo brand-logo--sidebar" src="/brand/carpinteria-360-logo.png" alt="" />
+                  <span className="app-brand__text"><b>CARPINTERÍA</b><small>ORDENADA 360°</small></span>
+                </a>
+                <Drawer.CloseTrigger className="sidebar-close" aria-label="Cerrar menú"><XClose size={19} aria-hidden="true" /></Drawer.CloseTrigger>
+                <div className="sidebar-caption">ESPACIO DE TRABAJO</div>
+                <nav className="side-nav" aria-label="Secciones del taller">{navLinks}</nav>
+                <div className="sidebar-spacer" />
+                <div className="sidebar-workshop"><span className="workshop-symbol">⌂</span><div><b>Taller principal</b><small>Entorno local</small></div><span className="online-light" title="API conectada" /></div>
+                <div className="sidebar-user"><div className="avatar">{user.name.slice(0, 1).toUpperCase()}</div><div className="sidebar-user__info"><b>{user.name}</b><small>{user.role === 'OPERARIO' ? 'Operario' : user.role === 'TESTER' ? 'Tester' : 'Administrador'}</small></div><button type="button" className="icon-button logout-button" aria-label="Cerrar sesión" onClick={onLogout}><LogOut01 size={16} aria-hidden="true" /></button></div>
+              </aside>
+            </Drawer.Dialog>
+          </Drawer.Content>
+        </Drawer.Backdrop>
+      </Drawer.Root>
       <aside className="sidebar" id="primary-navigation" aria-label="Navegación principal">
         <a className="app-brand" href="/">
           <img className="brand-logo brand-logo--sidebar" src="/brand/carpinteria-360-logo.png" alt="" />
           <span className="app-brand__text"><b>CARPINTERÍA</b><small>ORDENADA 360°</small></span>
         </a>
-        <button type="button" className="sidebar-close" aria-label="Cerrar menú" onClick={() => setMobileNavOpen(false)}>×</button>
         <div className="sidebar-caption">ESPACIO DE TRABAJO</div>
-        <nav className="side-nav" aria-label="Navegación principal">
-          {allowedNav.map((item) => <AppLink key={item.id} href={pagePaths[item.id]} className={`side-link ${activeNav === item.id ? 'is-active' : ''}`} current={activeNav === item.id} onClick={() => setMobileNavOpen(false)}><span className="side-link__icon">{item.icon}</span><span>{item.label}</span>{activeNav === item.id ? <span className="side-link__active" /> : null}</AppLink>)}
-        </nav>
+        <nav className="side-nav" aria-label="Navegación principal">{navLinks}</nav>
         <div className="sidebar-spacer" />
         <div className="sidebar-workshop"><span className="workshop-symbol">⌂</span><div><b>Taller principal</b><small>Entorno local</small></div><span className="online-light" title="API conectada" /></div>
-        <div className="sidebar-user"><div className="avatar">{user.name.slice(0, 1).toUpperCase()}</div><div className="sidebar-user__info"><b>{user.name}</b><small>{user.role === 'OPERARIO' ? 'Operario' : user.role === 'TESTER' ? 'Tester' : 'Administrador'}</small></div><button type="button" className="icon-button logout-button" title="Cerrar sesión" aria-label="Cerrar sesión" onClick={onLogout}>↗</button></div>
+        <div className="sidebar-user"><div className="avatar">{user.name.slice(0, 1).toUpperCase()}</div><div className="sidebar-user__info"><b>{user.name}</b><small>{user.role === 'OPERARIO' ? 'Operario' : user.role === 'TESTER' ? 'Tester' : 'Administrador'}</small></div><Tooltip><Tooltip.Trigger><button type="button" className="icon-button logout-button" aria-label="Cerrar sesión" onClick={onLogout}><LogOut01 size={16} aria-hidden="true" /></button></Tooltip.Trigger><Tooltip.Content placement="top">Cerrar sesión</Tooltip.Content></Tooltip></div>
       </aside>
       <main className="main-area" ref={mainRef}>
         <header className="topbar">
-          <button type="button" className="menu-toggle" aria-controls="primary-navigation" aria-expanded={mobileNavOpen} aria-label={mobileNavOpen ? 'Cerrar menú' : 'Abrir menú'} onClick={() => setMobileNavOpen((value) => !value)}><span aria-hidden="true">☰</span></button>
+          <button type="button" className="menu-toggle" aria-controls="mobile-primary-navigation" aria-expanded={mobileDrawer.isOpen} aria-label={mobileDrawer.isOpen ? 'Cerrar menú' : 'Abrir menú'} onClick={mobileDrawer.open}><Menu01 size={21} aria-hidden="true" /></button>
           <nav className="breadcrumb" aria-label="Ruta de navegación">{breadcrumbs.map((crumb, index) => <span className="breadcrumb__item" key={`${crumb.label}-${index}`}>{index ? <b aria-hidden="true">/</b> : null}{crumb.href ? <AppLink href={crumb.href} current={index === breadcrumbs.length - 1}>{crumb.label}</AppLink> : <strong aria-current="page">{crumb.label}</strong>}</span>)}</nav>
           <div className="topbar__right"><span className="today-label">{todayDateFormatter.format(new Date())}</span><span className="topbar-avatar">{user.name.slice(0, 1).toUpperCase()}</span></div>
         </header>
-        {notice ? <div className="toast toast--success" role="status"><span>✓</span>{notice}<button type="button" onClick={() => setNotice('')} aria-label="Cerrar aviso">×</button></div> : null}
-        {error ? <div className="toast toast--error" role="alert"><span>!</span>{error}<button type="button" onClick={() => setError('')} aria-label="Cerrar error">×</button></div> : null}
-        {loading ? <div className="loading-state"><span className="spinner" />Cargando {title.toLowerCase()}…</div> : <div className="page-content">
-          {page === 'dashboard' ? <DashboardScreen data={data.summary as never} onNavigate={(destination) => navigateTo(pagePaths[destination])} /> : null}
+        {loading ? page === 'dashboard' ? <DashboardSkeleton /> : <div className="loading-state"><span className="spinner" />Cargando {title.toLowerCase()}…</div> : error ? <div className="page-content"><section className="load-error" role="alert"><AlertCircle size={22} aria-hidden="true" /><div><h1>No se pudo cargar {title.toLowerCase()}.</h1><p>{error}</p><button type="button" className="button button--quiet" onClick={() => { void load(); }}>Reintentar</button></div></section></div> : <div className="page-content">
+          {page === 'dashboard' ? <DashboardScreen data={data.summary as DashboardSummary | undefined} period={dashboardPeriod} onPeriodChange={setDashboardPeriod} onNavigate={(destination) => navigateTo(pagePaths[destination])} /> : null}
           {page === 'inventory' ? <InventoryScreen data={data as never} busy={busy} run={run} canManage={user.role !== 'OPERARIO'} route={route} /> : null}
           {page === 'customers' ? <CustomersScreen customers={customers ?? []} orders={orders ?? []} busy={busy} run={run} route={route} /> : null}
           {page === 'products' ? <ProductsScreen products={products ?? []} busy={busy} run={run} route={route} /> : null}

@@ -1,45 +1,81 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
+import { Activity, AlertCircle, ArrowDownLeft, ArrowUpRight, CheckCircle, HelpCircle, Package, ShoppingBag02 } from '@untitledui/icons';
+import { Tooltip } from '@heroui/react/tooltip';
 import { api, dateTime, formatPEN } from '../api';
+import type { DashboardPeriod, DashboardSummary } from '../api';
 import type { AppPage, AppRoute, Customer, Order, Product, SettingValues } from '../App';
 import { AppLink, ModuleTabs } from '../components/ModuleTabs';
 import { SelectField } from '../components/SelectField';
 import { navigateTo } from '../navigation';
 
 type Run = <T,>(action: () => Promise<T>, success: string) => Promise<T | undefined>;
+const OrdersTrendChart = lazy(() => import('../components/OrdersTrendChart').then((module) => ({ default: module.OrdersTrendChart })));
 const documentKinds = ['DNI', 'RUC', 'CE', 'PASAPORTE', 'OTRO'];
 const emptyCustomer = { documentType: 'DNI', documentNumber: '', name: '', phone: '', email: '', address: '', notes: '' };
 const orderStatusLabels: Record<string, string> = { CONFIRMED: 'Confirmado', IN_PRODUCTION: 'En producción', READY: 'Listo', DELIVERED: 'Entregado', CANCELLED: 'Cancelado' };
 const orderStatusLabel = (status: string) => orderStatusLabels[status] ?? status.replaceAll('_', ' ');
 
-export function DashboardScreen({ data, onNavigate }: { data?: any; onNavigate: (page: AppPage) => void }) {
+export function DashboardScreen({ data, period, onPeriodChange, onNavigate }: { data?: DashboardSummary; period: DashboardPeriod; onPeriodChange: (period: DashboardPeriod) => void; onNavigate: (page: AppPage) => void }) {
   if (!data) return <EmptyState title="No hay resumen disponible" detail="Comprueba la conexión y vuelve a cargar la página." />;
   const stageLabel: Record<string, string> = { ORDER_RECEIVED: 'Pedido recibido', MATERIALS_RESERVED: 'Materiales reservados', CUTTING: 'Corte', ASSEMBLY: 'Ensamblaje', SANDING: 'Lijado', FINISHING: 'Acabado', QUALITY_CONTROL: 'Control de calidad', READY: 'Listo' };
+  const hasTrend = data.ordersTrend.points.some((point) => point.orderCount > 0 || point.totalCents > 0);
+  const maxStageCount = Math.max(1, ...data.productionByStage.map((stage) => stage.count));
+  const periodLabel = period === '7d' ? 'Últimos 7 días' : period === '30d' ? 'Últimos 30 días' : 'Este mes';
   return <>
     <PageHeading eyebrow="LUNES A VIERNES · ESTADO DEL TALLER" title="El taller, en orden." subtitle="Una vista clara de lo que está pasando hoy." />
     <div className="stat-grid">
-      <StatCard label="PEDIDOS ACTIVOS" value={data.activeOrders} suffix="en curso" tone="forest" icon="▤" />
-      <StatCard label="PEDIDOS LISTOS" value={data.readyOrders} suffix="para coordinar" tone="ochre" icon="✓" />
-      <StatCard label="INCIDENCIAS ABIERTAS" value={data.openIncidents} suffix="requieren atención" tone={data.openIncidents ? 'coral' : 'forest'} icon="!" />
-      <StatCard label="PEDIDOS DEL MES" value={data.period?.orders ?? 0} suffix={formatPEN(data.period?.orderTotalCents ?? 0)} tone="blue" icon="↗" />
+      <StatCard label="PEDIDOS ACTIVOS" value={data.activeOrders} suffix="en curso" tone="forest" icon={<ShoppingBag02 size={17} aria-hidden="true" />} />
+      <StatCard label="PEDIDOS LISTOS" value={data.readyOrders} suffix="para coordinar" tone="ochre" icon={<CheckCircle size={17} aria-hidden="true" />} />
+      <StatCard label="INCIDENCIAS ABIERTAS" value={data.openIncidents} suffix="requieren atención" tone={data.openIncidents ? 'coral' : 'forest'} icon={<AlertCircle size={17} aria-hidden="true" />} />
+      <StatCard label="PEDIDOS DEL MES" value={data.period.orders} suffix={formatPEN(data.period.orderTotalCents)} tone="forest" icon={<Activity size={17} aria-hidden="true" />} />
     </div>
     <div className="dashboard-grid">
+      <section className="card trend-card" aria-labelledby="orders-trend-title">
+        <div className="card-heading">
+          <div><p className="eyebrow">VENTAS Y PEDIDOS</p><h2 id="orders-trend-title">Actividad del taller</h2><p>Pedidos creados y venta no cancelada · {periodLabel}</p></div>
+          <div className="trend-tools">
+            <div className="trend-legend" aria-label="Series del gráfico"><span><i className="trend-legend__sales" />Ventas</span><span><i className="trend-legend__orders" />Pedidos</span></div>
+            <Tooltip>
+              <Tooltip.Trigger><button type="button" className="chart-help" aria-label="Acerca de este gráfico"><HelpCircle size={16} aria-hidden="true" /></button></Tooltip.Trigger>
+              <Tooltip.Content placement="top">Importes en soles. Los pedidos cancelados quedan fuera de la serie.</Tooltip.Content>
+            </Tooltip>
+            <label className="trend-period">Periodo
+              <SelectField value={period} onChange={(event) => onPeriodChange(event.target.value as DashboardPeriod)} aria-label="Periodo de actividad">
+                <option value="7d">7 días</option><option value="30d">30 días</option><option value="month">Este mes</option>
+              </SelectField>
+            </label>
+          </div>
+        </div>
+        <div className="trend-chart">
+          {hasTrend ? <Suspense fallback={<div className="chart-loading" aria-label="Cargando gráfico" />}><OrdersTrendChart points={data.ordersTrend.points} /></Suspense> : <div className="chart-empty"><Activity size={22} aria-hidden="true" /><div><b>No hay ventas registradas en este periodo.</b><p>La actividad aparecerá aquí cuando se registren pedidos.</p></div></div>}
+        </div>
+        <p className="trend-note">Datos reales del taller · {data.ordersTrend.points.reduce((total, point) => total + point.orderCount, 0)} pedidos en el periodo</p>
+      </section>
       <section className="card stage-card">
         <div className="card-heading"><div><p className="eyebrow">FLUJO DE TRABAJO</p><h2>Producción por etapa</h2></div><button type="button" className="text-button" onClick={() => onNavigate('production')}>Ver producción <span>→</span></button></div>
-        {data.productionByStage?.length ? <div className="stage-list">{data.productionByStage.map((stage: any) => <div className="stage-row" key={stage.stage}><span className="stage-marker" /><span className="stage-name">{stageLabel[stage.stage] ?? stage.stage}</span><div className="stage-track"><span style={{ width: `${Math.min(100, stage.count * 14)}%` }} /></div><b>{stage.count}</b></div>)}</div> : <EmptyInline title="Sin producción en marcha" detail="Los trabajos activos aparecerán aquí." action="Ver producción" onAction={() => onNavigate('production')} />}
-        <div className="month-note"><span>DESDE EL 1 DEL MES</span><b>{data.period?.orders ?? 0} pedidos <i>·</i> {formatPEN(data.period?.orderTotalCents ?? 0)}</b></div>
+        {data.productionByStage.length ? <div className="stage-list">{data.productionByStage.map((stage) => <div className="stage-row" key={stage.stage}><span className="stage-marker" /><span className="stage-name">{stageLabel[stage.stage] ?? stage.stage}</span><div className="stage-track"><span style={{ width: `${Math.round(stage.count / maxStageCount * 100)}%` }} /></div><b>{stage.count}</b></div>)}</div> : <EmptyInline title="Sin producción en marcha" detail="Los trabajos activos aparecerán aquí." action="Ver producción" onAction={() => onNavigate('production')} />}
+        <div className="month-note"><span>DESDE EL 1 DEL MES</span><b>{data.period.orders} pedidos <i>·</i> {formatPEN(data.period.orderTotalCents)}</b></div>
       </section>
       <section className="card stock-card">
-        <div className="card-heading"><div><p className="eyebrow">MATERIALES Y HERRAMIENTAS</p><h2>Stock por revisar</h2></div><button type="button" className="round-arrow" aria-label="Abrir inventario" onClick={() => onNavigate('inventory')}>↗</button></div>
-        {data.lowStock?.length ? <div className="low-stock-list">{data.lowStock.slice(0, 6).map((item: any) => <div className="low-stock-row" key={item.id}><span className="material-chip">{item.name.slice(0, 1)}</span><div><b>{item.name}</b><small>{item.type.toLowerCase()}</small></div><strong>{item.stock + item.availablePieces}<small> {item.unit || 'pzas.'}</small></strong></div>)}</div> : <EmptyInline title="Stock al día" detail="Los artículos con pocas existencias aparecerán aquí." />}
+        <div className="card-heading"><div><p className="eyebrow">MATERIALES Y HERRAMIENTAS</p><h2>Stock por revisar</h2></div><button type="button" className="round-arrow" aria-label="Abrir inventario" onClick={() => onNavigate('inventory')}><ArrowUpRight size={16} aria-hidden="true" /></button></div>
+        {data.lowStock.length ? <div className="low-stock-list">{data.lowStock.slice(0, 6).map((item) => <div className="low-stock-row" key={item.id}><span className="material-chip">{item.name.slice(0, 1)}</span><div><b>{item.name}</b><small>{item.type.toLowerCase()}</small></div><strong>{item.stock + item.availablePieces}<small> {item.unit || 'pzas.'}</small></strong></div>)}</div> : <EmptyInline title="Stock al día" detail="Los artículos con pocas existencias aparecerán aquí." />}
       </section>
       <section className="card movements-card">
         <div className="card-heading"><div><p className="eyebrow">REGISTRO EN VIVO</p><h2>Últimos movimientos</h2></div><button type="button" className="text-button" onClick={() => onNavigate('inventory')}>Ver inventario <span>→</span></button></div>
-        {data.recentMovements?.length ? <div className="movement-list">{data.recentMovements.slice(0, 7).map((movement: any) => <div className="movement-row" key={movement.id}><span className="movement-icon">{movement.action.includes('CONSUMED') ? '↘' : movement.action.includes('CREATED') ? '+' : '↗'}</span><div><b>{movement.itemName}</b><small>{movement.note || movement.action.replaceAll('_', ' ').toLowerCase()}</small></div><time>{dateTime(movement.createdAt)}</time></div>)}</div> : <EmptyInline title="Aún no hay movimientos" detail="Las entradas, reservas y consumos se registrarán aquí." />}
+        {data.recentMovements.length ? <div className="movement-list">{data.recentMovements.slice(0, 7).map((movement) => { const MovementIcon = movement.action.includes('CONSUMED') ? ArrowDownLeft : movement.action.includes('CREATED') ? Package : ArrowUpRight; return <div className="movement-row" key={movement.id}><span className="movement-icon"><MovementIcon size={14} aria-hidden="true" /></span><div><b>{movement.itemName}</b><small>{movement.note || movement.action.replaceAll('_', ' ').toLowerCase()}</small></div><time>{dateTime(movement.createdAt)}</time></div>; })}</div> : <EmptyInline title="Aún no hay movimientos" detail="Las entradas, reservas y consumos se registrarán aquí." />}
       </section>
       <section className="card workshop-card"><div className="workshop-graphic" aria-hidden="true"><span /><span /><span /><i>✳</i></div><p className="eyebrow">EL SIGUIENTE PASO</p><h2>Todo empieza<br />con un buen pedido.</h2><p>Organiza el trabajo desde la cotización hasta la entrega.</p><button type="button" className="button button--light" onClick={() => onNavigate('orders')}>Crear un pedido <span>↗</span></button></section>
     </div>
   </>;
+}
+
+export function DashboardSkeleton() {
+  return <div className="page-content dashboard-skeleton" role="status" aria-label="Cargando resumen">
+    <div className="page-heading"><div><span className="skeleton-line skeleton-line--eyebrow" /><span className="skeleton-line skeleton-line--title" /><span className="skeleton-line skeleton-line--subtitle" /></div></div>
+    <div className="stat-grid">{Array.from({ length: 4 }, (_, index) => <div className="stat-card skeleton-block" key={index}><span className="skeleton-line" /><span className="skeleton-line skeleton-line--number" /><span className="skeleton-line skeleton-line--short" /></div>)}</div>
+    <div className="dashboard-grid"><div className="card skeleton-block skeleton-block--trend" /><div className="card skeleton-block" /><div className="card skeleton-block" /><div className="card skeleton-block" /></div>
+  </div>;
 }
 
 export function CustomersScreen({ customers, orders = [], busy, run, route }: { customers: Customer[]; orders?: Order[]; busy: boolean; run: Run; route: AppRoute }) {
@@ -148,7 +184,7 @@ function PageHeading({ eyebrow, title, subtitle, actions }: { eyebrow: string; t
   return <div className="page-heading"><div><p className="eyebrow">{eyebrow}</p><h1 tabIndex={-1}>{title}</h1><p>{subtitle}</p></div>{actions ? <div className="page-heading__actions">{actions}</div> : null}</div>;
 }
 
-function StatCard({ label, value, suffix, tone, icon }: { label: string; value: string | number; suffix: string; tone: string; icon: string }) {
+function StatCard({ label, value, suffix, tone, icon }: { label: string; value: string | number; suffix: string; tone: string; icon: ReactNode }) {
   return <article className={`stat-card stat-card--${tone}`}><div className="stat-card__top"><span>{label}</span><i>{icon}</i></div><strong>{value}</strong><small>{suffix}</small><span className="stat-card__line" /></article>;
 }
 
