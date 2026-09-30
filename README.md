@@ -29,7 +29,8 @@ La guía completa del backend y los roles está en `Bcarpinteria/README.md`.
 - **Inventario:** importa después de revisar el Excel, crea y edita artículos, administra stock y unidades físicas, y decide si cada retazo se conserva o descarta.
 - **Clientes y productos:** búsqueda, alta y edición. El catálogo no fija materiales; cada pedido define lo que se fabricará.
 - **Pedidos:** carrito con varias líneas (catálogo, mueble personalizado o material vendible), dimensiones en mm/cm/m, cotización del servidor, pagos manuales, ficha PDF + QR, WhatsApp manual y enlace de seguimiento.
-- **Producción:** componentes y piezas por línea del pedido, planos SVG de sugerencia de corte, reserva/consumo, etapas e historial, pausas, notas internas/públicas, incidencias y fotos públicas u ocultas.
+- **Producción:** componentes y piezas por línea del pedido, planos SVG de sugerencia de corte, reserva/consumo, etapas e historial, pausas, notas internas/públicas, incidencias y fotos públicas u ocultas. Si el plano no ubica todas las piezas, muestra el diagnóstico que calcula el backend (motivo, stock físico por material, piezas agrupadas y acciones de recuperación).
+- **Dimensiones:** la UI usa tres medidas, **Largo × Ancho × Alto**, que se envían al backend como `lengthMm`, `widthMm` y `thicknessMm` (en madera, el alto es el espesor). El selector de madera muestra cuántas piezas físicas disponibles hay y con qué alto; si todas tienen el mismo, el alto se sugiere y sigue siendo editable. Ver `src/dimensions.ts`.
 - **Seguimiento público:** `/seguimiento/<token>` sin cuenta de cliente, con estado, producto, porcentaje, timeline y contenido público. Web Push solo solicita permiso al pulsar “Activar notificaciones”.
 - **Configuración y usuarios:** IGV, kerf, datos del taller, cuentas, rol y estado activo.
 

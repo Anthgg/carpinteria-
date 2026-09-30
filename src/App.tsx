@@ -354,7 +354,7 @@ function Workspace({ user, onLogout }: { user: User; onLogout: () => void }) {
           {page === 'customers' ? <CustomersScreen customers={customers ?? []} orders={orders ?? []} busy={busy} run={run} route={route} /> : null}
           {page === 'products' ? <ProductsScreen products={products ?? []} busy={busy} run={run} route={route} /> : null}
           {page === 'orders' ? <OrdersScreen data={data as never} busy={busy} run={run} route={route} /> : null}
-          {page === 'production' ? <ProductionScreen jobs={data.jobs as never[] ?? []} inventory={data.inventory as InventoryItem[] ?? []} busy={busy} run={run} route={route} /> : null}
+          {page === 'production' ? <ProductionScreen jobs={data.jobs as never[] ?? []} inventory={data.inventory as InventoryItem[] ?? []} pieces={data.pieces as never[] ?? []} canManage={user.role !== 'OPERARIO'} busy={busy} run={run} route={route} /> : null}
           {page === 'settings' ? <SettingsScreen settings={data.settings as SettingValues | undefined} busy={busy} run={run} route={route} /> : null}
           {page === 'users' ? <UsersScreen users={data.users as never[] ?? []} busy={busy} run={run} route={route} /> : null}
         </div>}

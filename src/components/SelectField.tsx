@@ -6,7 +6,7 @@ import { Select } from '@heroui/react/select';
 import { Children, isValidElement, useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { Key, ReactNode } from 'react';
 
-type Option = { value: string; label: string; disabled: boolean };
+type Option = { value: string; label: string; disabled: boolean; description?: string };
 type Change = { target: { value: string } };
 
 const contains = (text: string, input: string) => {
@@ -35,10 +35,11 @@ function textOf(node: ReactNode): string {
 
 function getOptions(children: ReactNode): Option[] {
   return Children.toArray(children).flatMap((child) => {
-    if (!isValidElement<{ value?: string; children?: ReactNode; disabled?: boolean }>(child) || child.type !== 'option') return [];
+    if (!isValidElement<{ value?: string; children?: ReactNode; disabled?: boolean; 'data-description'?: string }>(child) || child.type !== 'option') return [];
     const label = textOf(child.props.children).trim();
     const value = child.props.value === undefined ? label : String(child.props.value);
-    return [{ value, label, disabled: !!child.props.disabled || value === '' }];
+    // Texto secundario opcional en la lista: <option data-description="4 disponibles · 18 mm">.
+    return [{ value, label, disabled: !!child.props.disabled || value === '', description: child.props['data-description'] }];
   });
 }
 
@@ -91,7 +92,7 @@ export function SelectField({ name, value, defaultValue, onChange, children, cla
 
   const listOptions = selectableOptions.map((option) => (
     <ListBox.Item key={option.value} id={option.value} textValue={option.label} isDisabled={option.disabled} className="select-field__option">
-      {option.label}
+      {option.description ? <span className="select-field__option-text"><span>{option.label}</span><small>{option.description}</small></span> : option.label}
       <ListBox.ItemIndicator aria-hidden="true" />
     </ListBox.Item>
   ));

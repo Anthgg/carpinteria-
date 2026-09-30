@@ -831,6 +831,120 @@ input[type=checkbox] { accent-color: var(--forest); width: 14px; height: 14px; m
   .mobile-drawer__content { width: min(286px, calc(100vw - 34px)); max-width: calc(100vw - 34px); }
 }
 
+/* A015 · Production materials, cutting diagnosis and wide workspace layouts. */
+.select-field__option-text { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.select-field__option-text small { color: var(--muted); font-size: 10px; line-height: 1.35; }
+
+.defined-materials, .defined-materials__empty { margin: 0 17px 18px; }
+.defined-materials { display: grid; gap: 14px; }
+.defined-materials .form-subhead { border-top: 0; padding-top: 0; }
+.defined-materials__table { border: 1px solid var(--line-soft); border-radius: 8px; }
+.defined-materials__table table { width: 100%; }
+.defined-materials__table td small { display: block; margin-top: 2px; color: var(--muted); font-size: 9.5px; }
+.defined-materials + .materials-form > .form-subhead:first-child { padding-top: 14px; }
+
+.form-subhead__tools { display: flex; align-items: center; gap: 16px; }
+.unit-inline { display: flex !important; flex-direction: row !important; align-items: center; gap: 8px !important; font-size: 10px !important; }
+.unit-inline .select-field { width: 96px; }
+.materials-form__legend { margin-bottom: 8px; font-size: 10px; }
+.repeat-row--component { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.6fr) minmax(0, .7fr) 30px; gap: 12px; }
+.piece-editor { margin: 10px 0; padding: 14px; border: 1px solid var(--line-soft); border-radius: 8px; background: #fbfaf5; }
+.piece-editor__top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; color: var(--ink-soft); font-size: 10px; }
+.piece-editor__grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 14px; }
+.piece-editor__grid > label { display: flex; flex-direction: column; gap: 6px; min-width: 0; color: #505a53; font-size: 10.5px; font-weight: 600; }
+.piece-editor__grid input { width: 100%; }
+.piece-editor__name, .piece-editor__material { grid-column: span 2; }
+.materials-form__submit { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 14px; }
+.materials-form__submit small { color: var(--muted); font-size: 10px; }
+
+.stock-hint { display: grid; gap: 6px; margin-top: 12px; padding: 10px 12px; border: 1px solid #d6e3d8; border-radius: 7px; color: var(--green-ink); background: var(--green-tint); font-size: 10.5px; line-height: 1.45; }
+.stock-hint > b { font-size: 11px; }
+.stock-hint--warning { border-color: #e8d6ad; color: var(--brass-ink); background: var(--brass-tint); }
+.stock-hint__groups { display: grid; gap: 5px; }
+.stock-hint__group { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.stock-hint__thickness { padding: 3px 8px; border: 1px solid currentColor; border-radius: 999px; color: inherit; background: transparent; font: 700 10px var(--sans); cursor: pointer; }
+.stock-hint__thickness.is-selected { color: var(--card); background: var(--forest); border-color: var(--forest); cursor: default; }
+button.stock-hint__thickness.is-selected { cursor: pointer; }
+.stock-hint__pieces { font-family: var(--mono); font-size: 10px; overflow-wrap: anywhere; }
+.stock-hint__note { font-size: 10px; opacity: .92; }
+.stock-hint .text-button { justify-self: start; padding: 2px 0; color: inherit; }
+
+.cut-diagnosis { width: auto; display: flex; gap: 12px; margin: 0 17px 14px; padding: 16px 18px; border: 1px solid; border-radius: 10px; font-family: var(--sans); }
+.cut-diagnosis--error { border-color: #e6c5b6; color: #6f3a26; background: #fbefe8; }
+.cut-diagnosis--warning { border-color: #e8d6ad; color: var(--brass-ink); background: var(--brass-tint); }
+.cut-diagnosis__icon { flex: 0 0 auto; margin-top: 2px; color: var(--clay); }
+.cut-diagnosis--warning .cut-diagnosis__icon { color: var(--brass); }
+.cut-diagnosis__content { min-width: 0; flex: 1; display: grid; gap: 12px; }
+.cut-diagnosis__title { margin: 0; color: inherit; font-family: var(--serif); font-size: 18px; font-weight: 500; }
+.cut-diagnosis__lead { display: block; color: inherit; font-size: 12px; line-height: 1.55; }
+.cut-diagnosis__reason-label { display: block; margin-bottom: 2px; font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; opacity: .75; }
+.cut-diagnosis__stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0; }
+.cut-diagnosis__stats > div, .cut-diagnosis__material { padding: 10px 12px; border: 1px solid #0000000d; border-radius: 8px; background: #fffdf8b3; }
+.cut-diagnosis__stats dt { font-size: 9.5px; opacity: .8; }
+.cut-diagnosis__stats dd { margin: 2px 0 0; color: var(--ink); font-family: var(--serif); font-size: 22px; }
+.cut-diagnosis__stats .is-pending dd { color: var(--clay); }
+.cut-diagnosis__materials { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 8px; }
+.cut-diagnosis__material .eyebrow { margin: 0 0 2px; }
+.cut-diagnosis__material h3 { margin: 0 0 8px; color: var(--ink); font-family: var(--serif); font-size: 15px; font-weight: 500; }
+.cut-diagnosis__material dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 14px; margin: 0; }
+.cut-diagnosis__material dt { font-size: 9.5px; opacity: .8; }
+.cut-diagnosis__material dd { margin: 1px 0 0; color: var(--ink); font-size: 13px; font-weight: 600; }
+.cut-diagnosis__material dd small { display: block; color: var(--muted); font-size: 9.5px; font-weight: 400; }
+.cut-diagnosis__table { border: 1px solid #0000000f; border-radius: 8px; background: var(--card); }
+.cut-diagnosis__table table { width: 100%; }
+.cut-diagnosis__table th { white-space: nowrap; }
+.cut-diagnosis__table td { color: var(--ink-soft); vertical-align: top; }
+.cut-diagnosis__table td small { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; line-height: 1.45; }
+.cut-reason { display: inline-block; padding: 2px 8px; border-radius: 999px; color: #8a3f28; background: #f6dfd3; font-size: 10px; font-weight: 700; }
+.cut-reason--kerf-no-fit, .cut-reason--insufficient-remaining-space, .cut-reason--stock-reserved { color: var(--brass-ink); background: var(--brass-tint); }
+.cut-diagnosis__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.cut-diagnosis__legacy { margin: 0; padding-left: 18px; font-size: 11px; line-height: 1.7; }
+
+.order-create-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 320px); gap: 16px; align-items: start; }
+.order-create-layout .order-form { margin-bottom: 0; }
+.order-summary-card { position: sticky; top: 14px; display: grid; gap: 10px; padding: 18px; }
+.order-summary-card .eyebrow { margin: 0; }
+.order-summary-card h2 { margin: 0; font-family: var(--serif); font-size: 19px; font-weight: 500; }
+.order-summary-card__lines { display: grid; gap: 6px; padding-top: 8px; border-top: 1px solid var(--line-soft); }
+.order-summary-card__lines > div, .order-summary-card__totals > span, .order-summary-card__totals > strong { display: flex; justify-content: space-between; gap: 12px; color: var(--ink-soft); font-size: 11px; }
+.order-summary-card__lines b, .order-summary-card__totals b { font-family: var(--mono); white-space: nowrap; }
+.order-summary-card__totals { display: grid; gap: 6px; padding-top: 8px; border-top: 1px solid var(--line-soft); }
+.order-summary-card__totals > strong { padding-top: 8px; border-top: 1px solid var(--line-soft); color: var(--forest); font-size: 13px; }
+.order-summary-card > small { color: var(--muted); font-size: 9.5px; }
+.order-create-layout .order-review .quote-preview { display: none; }
+.order-customer-card { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px; margin: 0; padding: 12px 14px; border: 1px solid var(--line-soft); border-radius: 8px; background: var(--sand); }
+.order-customer-card dt { color: var(--muted); font-size: 9.5px; }
+.order-customer-card dd { margin: 2px 0 0; color: var(--ink); font-size: 12px; overflow-wrap: anywhere; }
+.order-customer-card--empty { display: block; color: var(--muted); font-size: 11px; }
+
+@media (min-width: 1280px) {
+  .order-line-editor .form-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (max-width: 1120px) {
+  .order-create-layout { grid-template-columns: minmax(0, 1fr); }
+  .order-summary-card { display: none; }
+  .order-create-layout .order-review .quote-preview { display: flex; }
+}
+@media (max-width: 650px) {
+  .piece-editor { padding: 11px; }
+  .piece-editor__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .repeat-row--component { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .repeat-row--component > label:nth-child(2) { grid-column: 1 / -1; grid-row: 2; }
+  .form-subhead__tools { gap: 10px; }
+  .form-subhead { flex-wrap: wrap; }
+  .cut-diagnosis { margin: 0 12px 12px; padding: 13px; flex-direction: column; gap: 6px; }
+  .cut-diagnosis__stats dd { font-size: 18px; }
+  .cut-diagnosis__materials { grid-template-columns: minmax(0, 1fr); }
+  .cut-diagnosis__table { border: 0; background: transparent; }
+  .cut-diagnosis__table table, .cut-diagnosis__table tbody, .cut-diagnosis__table tr, .cut-diagnosis__table td { display: block; width: 100%; min-width: 0 !important; }
+  .cut-diagnosis__table thead { display: none; }
+  .cut-diagnosis__table tr { margin-bottom: 8px; padding: 10px 12px; border: 1px solid #0000000f; border-radius: 8px; background: var(--card); }
+  .cut-diagnosis__table td { display: grid; grid-template-columns: 82px minmax(0, 1fr); gap: 8px; padding: 4px 0; border: 0; }
+  .cut-diagnosis__table td::before { content: attr(data-label); color: var(--muted); font-size: 9.5px; font-weight: 600; }
+  .cut-diagnosis__table td > small { grid-column: 2; margin-top: -4px; }
+  .order-customer-card { grid-template-columns: minmax(0, 1fr); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     scroll-behavior: auto !important;
