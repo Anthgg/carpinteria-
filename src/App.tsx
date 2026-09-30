@@ -1,17 +1,28 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { ElementType, FormEvent } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { FormEvent } from 'react';
 import { Drawer } from '@heroui/react/drawer';
 import { Toast } from '@heroui/react/toast';
-import { Tooltip } from '@heroui/react/tooltip';
-import { AlertCircle, Home01, LogOut01, Menu01, Package, Scissors01, Settings01, ShoppingBag02, Users01, XClose } from '@untitledui/icons';
 import { api } from './api';
+import { getUnitCatalog, setUnitCatalog } from './units';
+import type { UnitOption } from './units';
 import type { DashboardPeriod, DashboardSummary } from './api';
-import { DashboardScreen, DashboardSkeleton, CustomersScreen, ProductsScreen, SettingsScreen, UsersScreen } from './screens/GeneralScreens';
-import { OrdersScreen } from './modules/orders/OrdersScreen';
-import { InventoryScreen } from './modules/inventory/InventoryScreen';
-import { ProductionScreen } from './screens/ProductionScreen';
-import { TrackingScreen } from './screens/TrackingScreen';
 import { AppLink } from './components/ModuleTabs';
+import { Icon } from './components/Icon';
+import type { IconName } from './components/Icon';
+import { DetailSkeleton, ErrorState, FormSkeleton, PageLoader, TableSkeleton } from './components/feedback/Feedback';
+
+// Cada módulo se descarga al abrirlo: el arranque no paga gráficos, producción ni inventario.
+const general = () => import('./screens/GeneralScreens');
+const DashboardScreen = lazy(() => general().then((module) => ({ default: module.DashboardScreen })));
+const DashboardSkeleton = lazy(() => general().then((module) => ({ default: module.DashboardSkeleton })));
+const CustomersScreen = lazy(() => general().then((module) => ({ default: module.CustomersScreen })));
+const ProductsScreen = lazy(() => general().then((module) => ({ default: module.ProductsScreen })));
+const SettingsScreen = lazy(() => general().then((module) => ({ default: module.SettingsScreen })));
+const UsersScreen = lazy(() => general().then((module) => ({ default: module.UsersScreen })));
+const OrdersScreen = lazy(() => import('./modules/orders/OrdersScreen').then((module) => ({ default: module.OrdersScreen })));
+const InventoryScreen = lazy(() => import('./modules/inventory/InventoryScreen').then((module) => ({ default: module.InventoryScreen })));
+const ProductionScreen = lazy(() => import('./screens/ProductionScreen').then((module) => ({ default: module.ProductionScreen })));
+const TrackingScreen = lazy(() => import('./screens/TrackingScreen').then((module) => ({ default: module.TrackingScreen })));
 import { APP_NAVIGATION_EVENT, navigateTo } from './navigation';
 
 export type Role = 'TESTER' | 'ADMIN' | 'OPERARIO';
@@ -36,13 +47,13 @@ export type AppPage = 'dashboard' | 'inventory' | 'customers' | 'products' | 'or
 export type AppRoute = { page: AppPage; view: string; section: string; id?: string; tab?: string };
 
 const nav = [
-  { id: 'dashboard', label: 'Resumen', icon: Home01, roles: ['ADMIN', 'TESTER'] },
-  { id: 'orders', label: 'Pedidos', icon: ShoppingBag02, roles: ['ADMIN', 'TESTER'] },
-  { id: 'production', label: 'Producción', icon: Scissors01, roles: ['ADMIN', 'TESTER', 'OPERARIO'] },
-  { id: 'inventory', label: 'Inventario', icon: Package, roles: ['ADMIN', 'TESTER', 'OPERARIO'] },
-  { id: 'settings', label: 'Configuración', icon: Settings01, roles: ['ADMIN', 'TESTER'] },
-  { id: 'users', label: 'Usuarios', icon: Users01, roles: ['ADMIN', 'TESTER'] },
-] satisfies Array<{ id: AppPage; label: string; icon: ElementType; roles: Role[] }>;
+  { id: 'dashboard', label: 'Resumen', icon: 'dashboard', roles: ['ADMIN', 'TESTER'] },
+  { id: 'orders', label: 'Pedidos', icon: 'orders', roles: ['ADMIN', 'TESTER'] },
+  { id: 'production', label: 'Producción', icon: 'production', roles: ['ADMIN', 'TESTER', 'OPERARIO'] },
+  { id: 'inventory', label: 'Inventario', icon: 'inventory', roles: ['ADMIN', 'TESTER', 'OPERARIO'] },
+  { id: 'settings', label: 'Configuración', icon: 'settings', roles: ['ADMIN', 'TESTER'] },
+  { id: 'users', label: 'Usuarios', icon: 'users', roles: ['ADMIN', 'TESTER'] },
+] satisfies Array<{ id: AppPage; label: string; icon: IconName; roles: Role[] }>;
 
 export function resolveRoute(path: string): AppRoute {
   const parts = path.split('?')[0].split('/').filter(Boolean);
@@ -108,7 +119,7 @@ function LoginScreen({ onLogin }: { onLogin: (user: User) => void }) {
   return (
     <main className="login-page">
       <section className="login-visual" aria-label="Carpintería y producción ordenada">
-        <div className="login-brand"><img className="brand-logo brand-logo--login" src="/brand/carpinteria-360-logo.png" alt="Logo Carpintería Ordenada 360°" /><span>CARPINTERÍA<br /><b>ORDENADA 360°</b></span></div>
+        <div className="login-brand"><img className="brand-logo brand-logo--login" src="/brand/carpinteria-360-logo-192.png" width={192} height={192} alt="Logo Carpintería Ordenada 360°" /><span>CARPINTERÍA<br /><b>ORDENADA 360°</b></span></div>
         <div className="login-story">
           <p className="eyebrow eyebrow--light">TALLER · PEDIDOS · PRODUCCIÓN</p>
           <h1>De la primera<br />medida al último<br /><em>acabado.</em></h1>
@@ -191,9 +202,14 @@ function Workspace({ user, onLogout }: { user: User; onLogout: () => void }) {
     return () => cancelAnimationFrame(frame);
   }, [pathname, loading]);
 
+  const pageAllowed = allowedNav.some((item) => item.id === page) || (['customers', 'products'].includes(page) && user.role !== 'OPERARIO');
   const load = useCallback(async () => {
+    // Una página fuera del rol se redirige; no se piden datos que el backend negará (403).
+    if (!pageAllowed) return;
     setLoading(true); setError('');
     try {
+      // Catálogo controlado de unidades (fuente única en el backend), una vez por sesión.
+      if (!getUnitCatalog().length) setUnitCatalog(await api<UnitOption[]>('/inventory/units'));
       let next: Record<string, unknown> = {};
       if (page === 'dashboard') next = { summary: await api<DashboardSummary>(`/dashboard?period=${dashboardPeriod}`) };
       if (page === 'inventory') {
@@ -224,7 +240,7 @@ function Workspace({ user, onLogout }: { user: User; onLogout: () => void }) {
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'No se pudo cargar esta sección.');
     } finally { setLoading(false); }
-  }, [dashboardPeriod, page, revision, route.view]);
+  }, [dashboardPeriod, page, pageAllowed, revision, route.view]);
 
   useEffect(() => { void load(); }, [load]);
   const run = async <T,>(action: () => Promise<T>, success: string) => {
@@ -302,12 +318,15 @@ function Workspace({ user, onLogout }: { user: User; onLogout: () => void }) {
   }
   const activeNav = page === 'customers' || page === 'products' ? 'orders' : page;
   const title = breadcrumbs[breadcrumbs.length - 1]?.label ?? parentLabel[page] ?? 'Taller';
-  const navLinks = allowedNav.map((item) => {
-    const Icon = item.icon;
-    return <AppLink key={item.id} href={pagePaths[item.id]} className={`side-link ${activeNav === item.id ? 'is-active' : ''}`} current={activeNav === item.id} onClick={() => mobileDrawer.close()}>
-      <span className="side-link__icon"><Icon size={17} aria-hidden="true" /></span><span>{item.label}</span>{activeNav === item.id ? <span className="side-link__active" /> : null}
-    </AppLink>;
-  });
+  const navLinks = allowedNav.map((item) => <AppLink key={item.id} href={pagePaths[item.id]} className={`side-link ${activeNav === item.id ? 'is-active' : ''}`} current={activeNav === item.id} onClick={() => mobileDrawer.close()}>
+    <span className="side-link__icon"><Icon name={item.icon} size={20} /></span><span>{item.label}</span>{activeNav === item.id ? <span className="side-link__active" /> : null}
+  </AppLink>);
+  // Esqueleto con la forma de la pantalla que se está cargando; el dashboard tiene el suyo.
+  const loadingView = page === 'dashboard' ? <Suspense fallback={<PageLoader label="Cargando resumen…" />}><DashboardSkeleton /></Suspense>
+    : ['create', 'edit', 'stock', 'newPiece', 'settings'].includes(route.view) ? <div className="page-content"><FormSkeleton label={`Cargando ${title.toLowerCase()}`} /></div>
+      : route.view === 'detail' ? <div className="page-content"><DetailSkeleton label={`Cargando ${title.toLowerCase()}`} /></div>
+        : <div className="page-content"><TableSkeleton label={`Cargando ${title.toLowerCase()}`} /></div>;
+  const contentKey = `${page}:${route.view}:${route.id ?? ''}`;
 
   return (
     <div className="workspace">
@@ -318,15 +337,15 @@ function Workspace({ user, onLogout }: { user: User; onLogout: () => void }) {
             <Drawer.Dialog aria-label="Navegación principal" className="mobile-drawer__dialog">
               <aside className="sidebar sidebar--mobile" id="mobile-primary-navigation" aria-label="Navegación principal">
                 <a className="app-brand" href="/" onClick={() => mobileDrawer.close()}>
-                  <img className="brand-logo brand-logo--sidebar" src="/brand/carpinteria-360-logo.png" alt="" />
+                  <img className="brand-logo brand-logo--sidebar" src="/brand/carpinteria-360-logo-192.png" width={192} height={192} alt="" />
                   <span className="app-brand__text"><b>CARPINTERÍA</b><small>ORDENADA 360°</small></span>
                 </a>
-                <Drawer.CloseTrigger className="sidebar-close" aria-label="Cerrar menú"><XClose size={19} aria-hidden="true" /></Drawer.CloseTrigger>
+                <Drawer.CloseTrigger className="sidebar-close" aria-label="Cerrar menú"><Icon name="close" size={20} /></Drawer.CloseTrigger>
                 <div className="sidebar-caption">ESPACIO DE TRABAJO</div>
                 <nav className="side-nav" aria-label="Secciones del taller">{navLinks}</nav>
                 <div className="sidebar-spacer" />
-                <div className="sidebar-workshop"><span className="workshop-symbol">⌂</span><div><b>Taller principal</b><small>Entorno local</small></div><span className="online-light" title="API conectada" /></div>
-                <div className="sidebar-user"><div className="avatar">{user.name.slice(0, 1).toUpperCase()}</div><div className="sidebar-user__info"><b>{user.name}</b><small>{user.role === 'OPERARIO' ? 'Operario' : user.role === 'TESTER' ? 'Tester' : 'Administrador'}</small></div><button type="button" className="icon-button logout-button" aria-label="Cerrar sesión" onClick={onLogout}><LogOut01 size={16} aria-hidden="true" /></button></div>
+                <div className="sidebar-workshop"><span className="workshop-symbol"><Icon name="dashboard" size={16} /></span><div><b>Taller principal</b><small>Entorno local</small></div><span className="online-light" title="API conectada" /></div>
+                <div className="sidebar-user"><div className="avatar">{user.name.slice(0, 1).toUpperCase()}</div><div className="sidebar-user__info"><b>{user.name}</b><small>{user.role === 'OPERARIO' ? 'Operario' : user.role === 'TESTER' ? 'Tester' : 'Administrador'}</small></div><button type="button" className="icon-button logout-button" aria-label="Cerrar sesión" onClick={onLogout}><Icon name="logout" size={18} /></button></div>
               </aside>
             </Drawer.Dialog>
           </Drawer.Content>
@@ -334,22 +353,22 @@ function Workspace({ user, onLogout }: { user: User; onLogout: () => void }) {
       </Drawer.Root>
       <aside className="sidebar" id="primary-navigation" aria-label="Navegación principal">
         <a className="app-brand" href="/">
-          <img className="brand-logo brand-logo--sidebar" src="/brand/carpinteria-360-logo.png" alt="" />
+          <img className="brand-logo brand-logo--sidebar" src="/brand/carpinteria-360-logo-192.png" width={192} height={192} alt="" />
           <span className="app-brand__text"><b>CARPINTERÍA</b><small>ORDENADA 360°</small></span>
         </a>
         <div className="sidebar-caption">ESPACIO DE TRABAJO</div>
         <nav className="side-nav" aria-label="Navegación principal">{navLinks}</nav>
         <div className="sidebar-spacer" />
-        <div className="sidebar-workshop"><span className="workshop-symbol">⌂</span><div><b>Taller principal</b><small>Entorno local</small></div><span className="online-light" title="API conectada" /></div>
-        <div className="sidebar-user"><div className="avatar">{user.name.slice(0, 1).toUpperCase()}</div><div className="sidebar-user__info"><b>{user.name}</b><small>{user.role === 'OPERARIO' ? 'Operario' : user.role === 'TESTER' ? 'Tester' : 'Administrador'}</small></div><Tooltip><Tooltip.Trigger><button type="button" className="icon-button logout-button" aria-label="Cerrar sesión" onClick={onLogout}><LogOut01 size={16} aria-hidden="true" /></button></Tooltip.Trigger><Tooltip.Content placement="top">Cerrar sesión</Tooltip.Content></Tooltip></div>
+        <div className="sidebar-workshop"><span className="workshop-symbol"><Icon name="dashboard" size={16} /></span><div><b>Taller principal</b><small>Entorno local</small></div><span className="online-light" title="API conectada" /></div>
+        <div className="sidebar-user"><div className="avatar">{user.name.slice(0, 1).toUpperCase()}</div><div className="sidebar-user__info"><b>{user.name}</b><small>{user.role === 'OPERARIO' ? 'Operario' : user.role === 'TESTER' ? 'Tester' : 'Administrador'}</small></div><button type="button" className="icon-button logout-button" aria-label="Cerrar sesión" title="Cerrar sesión" onClick={onLogout}><Icon name="logout" size={18} /></button></div>
       </aside>
       <main className="main-area" ref={mainRef}>
         <header className="topbar">
-          <button type="button" className="menu-toggle" aria-controls="mobile-primary-navigation" aria-expanded={mobileDrawer.isOpen} aria-label={mobileDrawer.isOpen ? 'Cerrar menú' : 'Abrir menú'} onClick={mobileDrawer.open}><Menu01 size={21} aria-hidden="true" /></button>
+          <button type="button" className="menu-toggle" aria-controls="mobile-primary-navigation" aria-expanded={mobileDrawer.isOpen} aria-label={mobileDrawer.isOpen ? 'Cerrar menú' : 'Abrir menú'} onClick={mobileDrawer.open}><Icon name="menu" size={20} /></button>
           <nav className="breadcrumb" aria-label="Ruta de navegación">{breadcrumbs.map((crumb, index) => <span className="breadcrumb__item" key={`${crumb.label}-${index}`}>{index ? <b aria-hidden="true">/</b> : null}{crumb.href ? <AppLink href={crumb.href} current={index === breadcrumbs.length - 1}>{crumb.label}</AppLink> : <strong aria-current="page">{crumb.label}</strong>}</span>)}</nav>
           <div className="topbar__right"><span className="today-label">{todayDateFormatter.format(new Date())}</span><span className="topbar-avatar">{user.name.slice(0, 1).toUpperCase()}</span></div>
         </header>
-        {loading ? page === 'dashboard' ? <DashboardSkeleton /> : <div className="loading-state"><span className="spinner" />Cargando {title.toLowerCase()}…</div> : error ? <div className="page-content"><section className="load-error" role="alert"><AlertCircle size={22} aria-hidden="true" /><div><h1>No se pudo cargar {title.toLowerCase()}.</h1><p>{error}</p><button type="button" className="button button--quiet" onClick={() => { void load(); }}>Reintentar</button></div></section></div> : <div className="page-content">
+        {loading ? loadingView : error ? <div className="page-content"><ErrorState title={`No se pudo cargar ${title.toLowerCase()}.`} detail={error} onRetry={() => { void load(); }} /></div> : <Suspense fallback={loadingView}><div className="page-content page-enter" key={contentKey}>
           {page === 'dashboard' ? <DashboardScreen data={data.summary as DashboardSummary | undefined} period={dashboardPeriod} onPeriodChange={setDashboardPeriod} onNavigate={(destination) => navigateTo(pagePaths[destination])} /> : null}
           {page === 'inventory' ? <InventoryScreen data={data as never} busy={busy} run={run} canManage={user.role !== 'OPERARIO'} route={route} /> : null}
           {page === 'customers' ? <CustomersScreen customers={customers ?? []} orders={orders ?? []} busy={busy} run={run} route={route} /> : null}
@@ -358,7 +377,7 @@ function Workspace({ user, onLogout }: { user: User; onLogout: () => void }) {
           {page === 'production' ? <ProductionScreen jobs={data.jobs as never[] ?? []} availability={data.availability as never ?? { lowStockThreshold: 5, items: [] }} pieces={data.pieces as never[] ?? []} canManage={user.role !== 'OPERARIO'} busy={busy} run={run} route={route} /> : null}
           {page === 'settings' ? <SettingsScreen settings={data.settings as SettingValues | undefined} busy={busy} run={run} route={route} /> : null}
           {page === 'users' ? <UsersScreen users={data.users as never[] ?? []} busy={busy} run={run} route={route} /> : null}
-        </div>}
+        </div></Suspense>}
         <footer className="app-footer"><span>CARPINTERÍA ORDENADA 360° <b>·</b> V1</span><span>Un taller. Un solo flujo.</span></footer>
       </main>
     </div>
@@ -391,8 +410,8 @@ export default function App() {
     api<User>('/auth/me').then(setUser).catch(() => setUser(null)).finally(() => setBooting(false));
   }, [trackingToken, revision]);
 
-  if (trackingToken) return <TrackingScreen token={trackingToken} />;
-  if (booting) return <main className="splash"><img className="brand-logo brand-logo--splash" src="/brand/carpinteria-360-logo.png" alt="" /><span className="spinner" /> Preparando el taller…</main>;
+  if (trackingToken) return <Suspense fallback={<main className="splash"><PageLoader label="Cargando el seguimiento…" /></main>}><TrackingScreen token={trackingToken} /></Suspense>;
+  if (booting) return <main className="splash"><img className="brand-logo brand-logo--splash" src="/brand/carpinteria-360-logo-192.png" width={192} height={192} alt="" /><PageLoader /></main>;
   if (!user) return <LoginScreen onLogin={(signedIn) => { setUser(signedIn); setRevision((current) => current + 1); }} />;
   return <Workspace user={user} onLogout={async () => { await api('/auth/logout', { method: 'POST' }).catch(() => undefined); setUser(null); }} />;
 }

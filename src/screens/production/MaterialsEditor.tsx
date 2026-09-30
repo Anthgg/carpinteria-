@@ -8,6 +8,7 @@ import { ConsumableSummary, WoodSummary } from '../../components/MaterialSummary
 import { SelectField } from '../../components/SelectField';
 import { formatDimensions, fromMillimeters, stockQuantity } from '../../dimensions';
 import type { DimensionUnit, PhysicalPiece } from '../../dimensions';
+import { Icon } from '../../components/Icon';
 import {
   componentCompatibility, consumableDescription, isConsumable, isCuttingMaterial, pieceCompatibility,
   sortWoods, woodDescription, WOOD_GROUPS, woodSearchText, woodStatus,
@@ -59,7 +60,7 @@ function lockMessage(job: EditorJob) {
 }
 
 function Badge({ compat }: { compat: Compatibility }) {
-  return <span className={`badge badge--${compat.tone}`} title={compat.detail}>{compat.tone === 'ok' ? '✓ ' : '⚠ '}{compat.label}</span>;
+  return <span className={`badge badge--${compat.tone}`} title={compat.detail}><Icon name={compat.tone === 'ok' ? 'check' : 'warning'} size={16} />{compat.label}</span>;
 }
 
 function RowActions({ label, kind, disabled, onEdit, onDuplicate, onDelete }: { label: string; kind: string; disabled: boolean; onEdit: () => void; onDuplicate: () => void; onDelete: () => void }) {
@@ -254,7 +255,7 @@ export function MaterialsEditor({ job, availability, pieces, busy, highlight, on
       </div> : null}
       {item ? <WoodSummary item={item} pieces={pieces} /> : null}
       {compat ? <div className={`compat-note compat-note--${compat.tone}`} role="status">
-        <span>{compat.tone === 'ok' ? '✓' : '⚠'} {thicknessMm && pieceForm.length && pieceForm.width ? <b>{formatDimensions(toMillimeters(pieceForm.length, unit), toMillimeters(pieceForm.width, unit), thicknessMm)} ×{quantity}. </b> : null}{compat.detail}</span>
+        <span><Icon name={compat.tone === 'ok' ? 'check' : 'warning'} size={16} /> {thicknessMm && pieceForm.length && pieceForm.width ? <b>{formatDimensions(toMillimeters(pieceForm.length, unit), toMillimeters(pieceForm.width, unit), thicknessMm)} ×{quantity}. </b> : null}{compat.detail}</span>
         {compat.label === 'Sin piezas físicas' || compat.label === 'Stock reservado' ? <span className="compat-note__actions">
           <button type="button" className="text-button" onClick={(event) => (event.currentTarget.closest('.edit-form')?.querySelector<HTMLElement>('.select-field__trigger'))?.focus()}>Elegir otro material</button>
           <AppLink className="text-button" href={`/inventario/${pieceForm.materialId}`}>Ver inventario</AppLink>
@@ -281,7 +282,7 @@ export function MaterialsEditor({ job, availability, pieces, busy, highlight, on
         <label>Cant. por producto<input type="number" inputMode="decimal" min="0.001" step="any" value={componentForm.quantity} onChange={(event) => setComponentForm({ ...componentForm, quantity: event.target.value })} /></label>
       </div>
       {item ? <ConsumableSummary item={item} lowStockThreshold={availability.lowStockThreshold} /> : null}
-      {compat ? <div className={`compat-note compat-note--${compat.tone}`} role="status"><span>{compat.tone === 'ok' ? '✓' : '⚠'} <b>{compat.label}.</b> {compat.detail}{job.orderLine.quantity > 1 ? ` (${componentForm.quantity} por producto × ${job.orderLine.quantity})` : ''}</span></div> : null}
+      {compat ? <div className={`compat-note compat-note--${compat.tone}`} role="status"><span><Icon name={compat.tone === 'ok' ? 'check' : 'warning'} size={16} /> <b>{compat.label}.</b> {compat.detail}{job.orderLine.quantity > 1 ? ` (${componentForm.quantity} por producto × ${job.orderLine.quantity})` : ''}</span></div> : null}
       {formError ? <p className="form-error" role="alert">{formError}</p> : null}
       <div className="edit-form__actions">
         <button type="button" className="button button--quiet button--small" onClick={cancelEdit}>Cancelar</button>
@@ -298,7 +299,7 @@ export function MaterialsEditor({ job, availability, pieces, busy, highlight, on
         <div><h3 id="pieces-heading">Piezas para cortar</h3><p>{pieceRows.length} {pieceRows.length === 1 ? 'pieza' : 'piezas'} · {totalCuts} a cortar{job.orderLine.quantity > 1 ? ` (×${job.orderLine.quantity} productos)` : ''} · medidas en mm (Largo × Ancho × Alto)</p></div>
         {editable ? <div className="editor-section__tools">
           <label className="unit-inline">Editar en<SelectField value={unit} aria-label="Unidad de edición de medidas" onChange={(event) => setUnit(event.target.value as DimensionUnit)}><option value="mm">mm</option><option value="cm">cm</option><option value="m">m</option></SelectField></label>
-          <button type="button" className="button button--quiet button--small" disabled={actionsDisabled} onClick={addPiece}>＋ Agregar pieza</button>
+          <button type="button" className="button button--quiet button--small" disabled={actionsDisabled} onClick={addPiece}><Icon name="create" size={16} />Agregar pieza</button>
         </div> : null}
       </header>
       {pieceRows.length ? <div className="table-wrap editor-table"><table>
@@ -321,7 +322,7 @@ export function MaterialsEditor({ job, availability, pieces, busy, highlight, on
     <section className="editor-section" aria-labelledby="components-heading">
       <header className="editor-section__head">
         <div><h3 id="components-heading">Materiales de consumo</h3><p>Tornillos, colas, barnices y otros consumibles de producción.</p></div>
-        {editable ? <div className="editor-section__tools"><button type="button" className="button button--quiet button--small" disabled={actionsDisabled} onClick={addComponent}>＋ Agregar material</button></div> : null}
+        {editable ? <div className="editor-section__tools"><button type="button" className="button button--quiet button--small" disabled={actionsDisabled} onClick={addComponent}><Icon name="create" size={16} />Agregar material</button></div> : null}
       </header>
       {componentRows.length ? <div className="table-wrap editor-table editor-table--components"><table>
         <thead><tr><th>Descripción</th><th>Material</th><th className="numeric-cell">Por producto</th><th className="numeric-cell">Necesario</th><th>Estado</th>{editable ? <th><span className="sr-only">Acciones</span></th> : null}</tr></thead>
