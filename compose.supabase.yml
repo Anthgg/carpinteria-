@@ -1,0 +1,32 @@
+# Modo SUPABASE QA: la misma app local (Vite + NestJS en Docker) contra Supabase PostgreSQL y Storage.
+#
+#   docker compose -f compose.yml -f compose.supabase.yml up -d     (o: npm run stack:supabase)
+#   docker compose up -d                                             (volver a LOCAL; o: npm run stack:local)
+#
+# Las credenciales viven solo en ../Bcarpinteria/.env.supabase (ignorado por Git). Este archivo no
+# contiene secretos: el backend recibe DATABASE_URL (Transaction Pooler 6543), SUPABASE_* , JWT_SECRET
+# y VAPID_* desde ese env_file. Ver docs/SUPABASE_RUNTIME.md.
+services:
+  postgres:
+    # La base local no se usa ni se arranca en este modo; si ya estaba corriendo, se deja intacta.
+    profiles: ["local-db"]
+
+  backend:
+    env_file: !override
+      - path: ../Bcarpinteria/.env.supabase
+        required: true
+    # Reemplaza por completo el environment local (sobre todo DATABASE_URL hacia el contenedor postgres).
+    environment: !override
+      PORT: "3000"
+      APP_ENV: SUPABASE
+      NODE_ENV: development
+      STORAGE_DRIVER: supabase
+      BD_PATH: /app/bd/inventario g.xlsx
+      UPLOAD_DIR: /app/uploads
+      CORS_ORIGINS: http://127.0.0.1:8080,http://localhost:8080
+      PUBLIC_BASE_URL: http://127.0.0.1:8080
+      # DIRECT_URL (5432) es solo para migraciones desde el host (npm run db:supabase:*); el runtime no la recibe.
+      DIRECT_URL: ""
+    # Sin `prisma migrate deploy` al arrancar: el runtime usa el pooler 6543, donde Prisma Migrate no debe correr.
+    command: ["npm", "run", "start:dev:remote"]
+    depends_on: !reset {}

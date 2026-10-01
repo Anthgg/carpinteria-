@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b --noEmit",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "stack:local": "docker compose up -d",
+    "stack:supabase": "docker compose -f compose.yml -f compose.supabase.yml up -d"
   },
   "dependencies": {
     "@gravity-ui/icons": "2.22.0",
