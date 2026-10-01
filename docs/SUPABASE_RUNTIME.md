@@ -11,7 +11,9 @@ La misma aplicación (Vite + NestJS en Docker, en `http://127.0.0.1:8080`) puede
 | Migraciones al arrancar | `prisma migrate deploy` (local) | **Ninguna** (`start:dev:remote`) |
 | `APP_ENV` / indicador | `LOCAL` | `SUPABASE` / «SUPABASE QA» |
 
-SUPABASE QA es un entorno remoto de pruebas, **no producción**: sigue en HTTP local (`NODE_ENV=development`, cookies sin `secure`), `PUBLIC_BASE_URL=http://127.0.0.1:8080` y CORS solo para `127.0.0.1/localhost:8080`. Los QR, avisos y seguimiento apuntan a la máquina local.
+> **Desde A018, Supabase es también la base de PRODUCCIÓN** (Cloud Run, ver `docs/CLOUD_RUN_DEPLOYMENT.md`). El modo SUPABASE QA local lee y escribe **los mismos datos** que la URL pública. Úsalo solo para diagnóstico y con pedidos marcados como QA.
+
+SUPABASE QA ejecuta la app en la máquina local, no en Cloud Run: sigue en HTTP local (`NODE_ENV=development`, cookies sin `secure`), `PUBLIC_BASE_URL=http://127.0.0.1:8080` y CORS solo para `127.0.0.1/localhost:8080`. Los QR, avisos y seguimiento apuntan a la máquina local.
 
 ## Cómo saber en qué entorno estás
 
