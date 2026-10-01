@@ -222,6 +222,7 @@ textarea { resize: vertical; }
 .today-label { color: #636d64; font-size: 10px; text-transform: capitalize; }
 .env-badge { display: inline-flex; align-items: center; min-height: 22px; padding: 2px 8px; border: 1px solid var(--line); border-radius: 999px; color: #4c564e; background: transparent; font-size: 10px; font-weight: 700; letter-spacing: .06em; white-space: nowrap; }
 .env-badge--remote { border-color: #b7791f; color: #6b4708; background: #fbefd7; }
+.env-badge--production { border-color: #294637; color: #f9f4e9; background: #294637; }
 .topbar-avatar { width: 29px; height: 29px; color: #294637; background: #e5ebe2; }
 .page-content { width: 100%; max-width: 1520px; margin: 0 auto; padding: 34px 36px 48px; flex: 1; }
 .page-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 25px; }
