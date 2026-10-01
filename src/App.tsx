@@ -8,6 +8,7 @@ import type { UnitOption } from './units';
 import type { DashboardPeriod, DashboardSummary } from './api';
 import { AppLink } from './components/ModuleTabs';
 import { Icon } from './components/Icon';
+import { EnvironmentBadge } from './components/EnvironmentBadge';
 import type { IconName } from './components/Icon';
 import { DetailSkeleton, ErrorState, FormSkeleton, PageLoader, TableSkeleton } from './components/feedback/Feedback';
 import { WorkshopMascot } from './components/feedback/WorkshopMascot';
@@ -403,7 +404,7 @@ function Workspace({ user, onLogout }: { user: User; onLogout: () => void }) {
         <header className="topbar">
           <button type="button" className="menu-toggle" aria-controls="mobile-primary-navigation" aria-expanded={mobileDrawer.isOpen} aria-label={mobileDrawer.isOpen ? 'Cerrar menú' : 'Abrir menú'} onClick={mobileDrawer.open}><Icon name="menu" size={20} /></button>
           <nav className="breadcrumb" aria-label="Ruta de navegación">{breadcrumbs.map((crumb, index) => <span className="breadcrumb__item" key={`${crumb.label}-${index}`}>{index ? <b aria-hidden="true">/</b> : null}{crumb.href ? <AppLink href={crumb.href} current={index === breadcrumbs.length - 1}>{crumb.label}</AppLink> : <strong aria-current="page">{crumb.label}</strong>}</span>)}</nav>
-          <div className="topbar__right"><span className="today-label">{todayDateFormatter.format(new Date())}</span><span className="topbar-avatar">{user.name.slice(0, 1).toUpperCase()}</span></div>
+          <div className="topbar__right"><EnvironmentBadge /><span className="today-label">{todayDateFormatter.format(new Date())}</span><span className="topbar-avatar">{user.name.slice(0, 1).toUpperCase()}</span></div>
         </header>
         {loading ? loadingView : error ? <div className="page-content"><ErrorState title={`No se pudo cargar ${title.toLowerCase()}.`} detail={error} onRetry={() => { void load(); }} /></div> : <Suspense fallback={loadingView}><div className="page-content page-enter" key={contentKey}>
           {page === 'dashboard' ? <DashboardScreen data={data.summary as DashboardSummary | undefined} period={dashboardPeriod} onPeriodChange={setDashboardPeriod} onNavigate={(destination) => navigateTo(pagePaths[destination])} /> : null}
