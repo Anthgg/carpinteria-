@@ -157,7 +157,71 @@ export function SettingsScreen({ settings, busy, run, route }: { settings?: Sett
       </div>
       <div className="action-bar"><button type="submit" className="button button--primary" disabled={busy}><BusyLabel busy={busy} busyText="Guardando…"><Icon name="save" size={16} />Guardar configuración</BusyLabel></button></div>
     </form>
+    {section === 'taller' ? <WebPushSettings /> : null}
   </>;
+}
+
+type WebPushTarget = { id: string; orderCode: string; products: string[]; createdAt: string };
+
+function WebPushSettings() {
+  const [configured, setConfigured] = useState(false);
+  const [targets, setTargets] = useState<WebPushTarget[]>([]);
+  const [selectedId, setSelectedId] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState('');
+
+  const loadTargets = async () => {
+    setLoading(true);
+    try {
+      const result = await api<{ configured: boolean; targets: WebPushTarget[] }>('/production/notifications/test-targets');
+      setConfigured(result.configured);
+      setTargets(result.targets);
+      setSelectedId((current) => result.targets.some((target) => target.id === current) ? current : result.targets[0]?.id ?? '');
+    } catch {
+      setMessage('No se pudo consultar la configuración de Web Push.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { void loadTargets(); }, []);
+
+  const sendTest = async () => {
+    if (!selectedId) return;
+    setBusy(true);
+    setMessage('');
+    try {
+      const result = await api<{ sent: boolean; orderCode: string }>('/production/notifications/test', {
+        method: 'POST', body: JSON.stringify({ subscriptionId: selectedId }),
+      });
+      setMessage(`Aviso de prueba enviado solo a ${result.orderCode}.`);
+    } catch (reason) {
+      setMessage(reason instanceof Error ? reason.message : 'No se pudo enviar el aviso de prueba.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return <section className="page-section settings-section push-admin-section" aria-labelledby="push-admin-title">
+    <div className="settings-section__intro">
+      <span className="section-icon"><Icon name="notify" size={24} /></span>
+      <p className="eyebrow">AVISOS AL CLIENTE</p>
+      <h2 id="push-admin-title">Notificaciones Web Push</h2>
+      <p>{configured ? 'Configurado para el entorno local. La prueba solo envía a una suscripción QA seleccionada.' : 'Configura VAPID en el .env local del backend para activar los avisos.'}</p>
+    </div>
+    <div className="push-admin__controls">
+      <div className={`push-admin__status ${configured ? 'is-ready' : ''}`} role="status"><span className="status-dot" />{loading ? 'Comprobando estado…' : configured ? 'Web Push configurado' : 'Avisos no disponibles'}</div>
+      {targets.length ? <label>Destino QA
+        <select value={selectedId} onChange={(event) => setSelectedId(event.target.value)} disabled={busy}>
+          {targets.map((target) => <option key={target.id} value={target.id}>{target.orderCode} · {target.products.join(', ') || 'Pedido QA'} · {dateTime(target.createdAt)}</option>)}
+        </select>
+      </label> : <p className="field-hint">{configured ? 'Activa avisos en el seguimiento de PED-00007 o PED-00008 para registrar una suscripción QA.' : 'Las claves VAPID permanecen en el .env ignorado del backend.'}</p>}
+      {configured && targets.length ? <button type="button" className="button button--primary" onClick={() => void sendTest()} disabled={busy || loading || !selectedId}>{busy ? 'Enviando…' : 'Enviar aviso de prueba'}</button> : null}
+      <button type="button" className="button button--quiet" onClick={() => void loadTargets()} disabled={loading || busy}>Actualizar estado</button>
+      {message ? <p className="push-admin__message" role="status">{message}</p> : null}
+    </div>
+  </section>;
 }
 
 export function UsersScreen({ users, busy, run, route }: { users: any[]; busy: boolean; run: Run; route: AppRoute }) {

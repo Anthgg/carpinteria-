@@ -1302,3 +1302,236 @@ tbody tr:hover > td { background: #f7f4ec; }
     transition-duration: 0.01ms !important;
   }
 }
+
+/* A014.7: public tracking uses the full workspace and keeps disabled push compact. */
+@property --progress {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+.tracking-shell { width: 100%; max-width: 1760px; padding: 0 clamp(16px, 3.4vw, 48px); }
+.tracking-header { min-height: 74px; height: auto; }
+.tracking-header .brand-logo { width: 54px; height: 54px; object-fit: contain; }
+.tracking-badge { font-size: 10px; }
+.tracking-hero {
+  min-height: clamp(260px, 25vw, 340px); grid-template-columns: minmax(0, 1fr) 220px; gap: 32px;
+  margin-top: 22px; padding: clamp(30px, 4vw, 58px) clamp(26px, 5vw, 72px); border-radius: 9px;
+  background: #203f32; transition: background 220ms ease;
+}
+.tracking-hero__copy { max-width: 720px; }
+.tracking-hero h1 { margin: 10px 0 14px; font-size: clamp(42px, 5vw, 64px); }
+.tracking-hero__lead { max-width: 540px; font-size: 14px; }
+.tracking-updated { margin-top: 20px; font-size: 11px; }
+.progress-ring { width: 172px; height: 172px; background: conic-gradient(#d4ae69 var(--progress), rgba(224, 233, 215, .2) var(--progress)); transition: --progress 500ms ease; }
+.progress-ring::before { background: #203f32; }
+.progress-ring b { font-size: 50px; }
+.progress-ring div > span { font-size: 9px; }
+.tracking-content {
+  display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(290px, .85fr);
+  grid-template-areas: "stage notices" "timeline photos" "updates photos";
+  gap: 16px 20px; margin: 18px 0 32px; align-items: start;
+}
+.tracking-section { min-width: 0; padding: clamp(18px, 2vw, 30px); border: 1px solid #e4e4da; border-radius: 8px; background: #fffefa; box-shadow: var(--shadow-card); }
+.tracking-stage-card { grid-area: stage; }
+.tracking-notifications { grid-area: notices; min-width: 0; padding: 22px; border-radius: 8px; color: #edf1e8; background: #405f4b; }
+.tracking-timeline-card { grid-area: timeline; }
+.tracking-photo-card { grid-area: photos; }
+.tracking-updates-card { grid-area: updates; }
+.tracking-section .tracking-card__heading h2 { font-size: clamp(22px, 2vw, 27px); }
+.tracking-section .eyebrow, .tracking-notifications .eyebrow { font-size: 10px; }
+.tracking-stage-card .tracking-progress-track { height: 8px; margin-top: 22px; }
+.tracking-stage-card .tracking-progress-track span { transition: width 500ms ease; }
+.tracking-stage-card .tracking-progress-labels { margin: 8px 0 16px; font-size: 10px; }
+.tracking-product { min-height: 56px; gap: 14px; }
+.tracking-product > span { font-size: 17px; }
+.tracking-product b { font-size: 12px; }
+.tracking-product small { font-size: 11px; }
+.estimated-date { font-size: 11px; }
+.estimated-date b { font-size: 12px; }
+.tracking-notifications__heading { display: flex; align-items: center; gap: 12px; }
+.tracking-notifications__heading .notification-icon { flex: 0 0 auto; color: #e6c472; }
+.tracking-notifications__heading .eyebrow { margin: 0 0 4px; color: #d3e0d2; }
+.tracking-notifications__heading h2 { margin: 0; color: #fbf7ea; font-family: var(--serif); font-size: 24px; font-weight: 400; line-height: 1.15; }
+.tracking-notifications__copy { margin: 15px 0; color: #e0e9dc; font-size: 12px; line-height: 1.55; }
+.tracking-notifications .button--primary { color: #274233; background: #f4eedf; }
+.tracking-notifications .button--quiet { color: #f7f3e9 !important; border-color: rgba(255,255,255,.55) !important; background-color: transparent !important; }
+.tracking-notifications .button--quiet:hover { color: #fff !important; background-color: rgba(255,255,255,.1) !important; }
+.tracking-notifications--unavailable { display: flex; align-items: center; min-height: 0; padding: 12px 15px; border: 1px solid #dedfd5; border-radius: 7px; color: #66736a; background: rgba(255,254,250,.6); box-shadow: none; }
+.tracking-notifications--unavailable p { display: flex; align-items: center; gap: 9px; margin: 0; font-size: 12px; }
+.tracking-notifications--unavailable .status-dot { background: #b8bdb6; }
+.tracking-push-message { margin: 12px 0 0; color: #f4d796; font-size: 12px; line-height: 1.45; }
+.tracking-push-message.is-success { color: #dcebd7; }
+.tracking-notifications .workshop-guide--push { gap: 3px; margin: 10px 0; }
+.tracking-notifications .workshop-guide--push .workshop-guide__message { color: #e7ebde; font-size: 11px; }
+.public-timeline { margin-top: 22px; }
+.public-timeline__entry { gap: 14px; padding-bottom: 19px; }
+.public-timeline__entry b { font-size: 12px; }
+.public-timeline__entry p { font-size: 11px; }
+.public-timeline__entry time { font-size: 10px; }
+.public-timeline__dot { width: 19px; height: 19px; }
+.public-timeline__entry:not(:last-child)::after { left: 9px; top: 19px; }
+.timeline-count { font-size: 10px; }
+.public-photo-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 16px 0 0; }
+.public-photo-grid img { aspect-ratio: 1.4; }
+.public-photo-grid figcaption { padding: 9px; font-size: 11px; }
+.public-photo-grid figcaption small { display: block; margin: 5px 0 0; font-size: 10px; }
+.public-notes { gap: 10px; margin-top: 16px; }
+.public-notes article { padding: 13px; }
+.public-notes article > span { font-size: 9px; }
+.public-notes p { margin: 8px 0; font-size: 12px; }
+.public-notes time { font-size: 10px; }
+.tracking-empty { min-height: 125px; }
+.tracking-empty-copy { margin: 15px 0 0; color: var(--muted); font-size: 12px; }
+.workshop-guide { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.workshop-guide__art { display: grid; flex: 0 0 auto; place-items: center; color: #52765a; }
+.workshop-guide__art svg { display: block; max-width: 100%; height: auto; }
+.workshop-guide__message { margin: 0; color: #546258; font-family: var(--serif); font-size: 15px; line-height: 1.45; }
+.workshop-guide__action { border: 0; color: var(--green-ink); background: none; font: inherit; text-decoration: underline; cursor: pointer; }
+.workshop-guide--tracking-loading, .workshop-guide--tracking-state { flex-direction: column; text-align: center; }
+.workshop-guide--tracking-loading .workshop-guide__art { animation: guide-arrive 550ms ease-out both; }
+.workshop-guide--tracking-loading .workshop-guide__message { color: #314b39; }
+.workshop-guide--empty { flex-direction: column; gap: 4px; text-align: center; }
+.workshop-guide--empty .workshop-guide__message { max-width: 320px; font-family: inherit; font-size: 12px; }
+.workshop-guide--stage { gap: 7px; }
+.workshop-guide--stage .workshop-guide__message { font-size: 14px; }
+.tracking-loading { min-height: min(68vh, 650px); gap: 22px; }
+.tracking-loading__skeleton { width: min(100%, 920px); display: grid; gap: 11px; padding: 22px; border: 1px solid #e6e6dd; border-radius: 8px; background: #fffefa; }
+.tracking-loading__skeleton span { height: 12px; border-radius: 12px; background: linear-gradient(90deg, #efefe8 25%, #f8f7f1 50%, #efefe8 75%); background-size: 200% 100%; animation: tracking-skeleton 1.4s ease-in-out infinite; }
+.tracking-loading__skeleton span:nth-child(1) { width: 38%; height: 18px; }
+.tracking-loading__skeleton span:nth-child(2) { width: 90%; }
+.tracking-loading__skeleton span:nth-child(3) { width: 74%; }
+.tracking-loading__skeleton span:nth-child(4) { width: 55%; }
+.tracking-state { min-height: min(68vh, 650px); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center; }
+.tracking-state h1 { margin: 8px 0 2px; color: #31473a; font-family: var(--serif); font-size: clamp(26px, 3vw, 38px); font-weight: 400; }
+.tracking-state .workshop-guide__message { max-width: 440px; }
+.tracking-offline { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; padding: 10px 14px; border: 1px solid #e7d9b7; border-radius: 6px; color: #6e5b33; background: #faf5e8; font-size: 12px; }
+.tracking-offline button { border: 0; color: #4d674f; background: none; font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }
+.tracking-footer { margin-top: 18px; padding: 18px 0 22px; font-size: 10px; }
+@keyframes tracking-skeleton { to { background-position: -200% 0; } }
+@keyframes guide-arrive { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+@media (max-width: 980px) {
+  .tracking-shell { padding-right: 22px; padding-left: 22px; }
+  .tracking-content { grid-template-columns: minmax(0, 1.25fr) minmax(270px, .9fr); gap: 14px; }
+  .tracking-section { padding: 18px; }
+  .tracking-notifications { padding: 19px; }
+}
+@media (max-width: 840px) {
+  .tracking-shell { padding-right: 16px; padding-left: 16px; }
+  .tracking-hero { min-height: 270px; grid-template-columns: minmax(0, 1fr) 170px; gap: 18px; padding: 28px; }
+  .progress-ring { width: 142px; height: 142px; }
+  .progress-ring b { font-size: 43px; }
+  .tracking-content { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "stage stage" "notices notices" "timeline photos" "updates updates"; }
+}
+@media (max-width: 600px) {
+  .tracking-shell { padding-right: 13px; padding-left: 13px; }
+  .tracking-header { min-height: 62px; gap: 10px; }
+  .tracking-header .brand-logo { width: 44px; height: 44px; }
+  .tracking-header .app-brand__text b { font-size: 9px; }
+  .tracking-header .app-brand__text small { font-size: 8px; }
+  .tracking-badge { gap: 6px; font-size: 8px; letter-spacing: .65px; }
+  .tracking-hero { min-height: 0; grid-template-columns: 1fr; justify-items: start; gap: 23px; margin-top: 13px; padding: 24px 20px; }
+  .tracking-hero h1 { font-size: 43px; }
+  .tracking-hero__lead { font-size: 13px; }
+  .tracking-updated { font-size: 10px; }
+  .progress-ring { width: 118px; height: 118px; justify-self: center; }
+  .progress-ring b { font-size: 38px; }
+  .tracking-content { grid-template-columns: minmax(0, 1fr); grid-template-areas: "stage" "notices" "timeline" "photos" "updates"; gap: 12px; margin-top: 12px; }
+  .tracking-section { padding: 17px 16px; }
+  .tracking-section .tracking-card__heading h2 { font-size: 22px; }
+  .tracking-notifications { padding: 17px; }
+  .tracking-notifications__heading h2 { font-size: 21px; }
+  .public-photo-grid { grid-template-columns: 1fr; }
+  .tracking-footer { align-items: flex-start; font-size: 9px; }
+  .tracking-footer > span:last-child { text-align: right; }
+}
+@media (max-width: 380px) {
+  .tracking-shell { padding-right: 11px; padding-left: 11px; }
+  .tracking-badge { font-size: 7px; }
+  .tracking-header .app-brand__text small { font-size: 7px; }
+  .tracking-hero { padding: 22px 17px; }
+  .tracking-hero h1 { font-size: 39px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tracking-hero, .tracking-stage-card .tracking-progress-track span, .progress-ring { transition: none !important; }
+  .tracking-loading__skeleton span, .workshop-guide--tracking-loading .workshop-guide__art { animation: none !important; }
+}
+
+.push-admin-section { margin-top: 18px; }
+.push-admin__controls { display: grid; align-content: start; gap: 12px; min-width: 0; }
+.push-admin__controls > label { display: grid; gap: 6px; color: #56645a; font-size: 11px; font-weight: 600; }
+.push-admin__controls select { width: 100%; min-width: 0; padding: 9px 10px; color: var(--ink); font-size: 11px; }
+.push-admin__status { display: flex; align-items: center; gap: 8px; color: #6d746e; font-size: 12px; }
+.push-admin__status .status-dot { background: #b5bdb6; }
+.push-admin__status.is-ready .status-dot { background: #6b9a74; }
+.push-admin__message { margin: 0; color: var(--green-ink); font-size: 11px; }
+
+.workshop-mascot__trigger {
+  position: fixed !important;
+  z-index: 80;
+  right: max(18px, env(safe-area-inset-right));
+  bottom: max(18px, env(safe-area-inset-bottom));
+  display: grid !important;
+  width: 62px;
+  height: 62px;
+  min-width: 62px;
+  padding: 5px !important;
+  place-items: center;
+  overflow: visible !important;
+  border: 1px solid #d8c79e !important;
+  border-radius: 50% !important;
+  color: #274233 !important;
+  background: #f8f4e9 !important;
+  box-shadow: 0 8px 24px rgba(30, 48, 37, .2), 0 2px 6px rgba(30, 48, 37, .12) !important;
+  transition: transform 160ms ease, box-shadow 160ms ease !important;
+}
+.workshop-mascot__trigger:hover { transform: translateY(-2px); box-shadow: 0 11px 26px rgba(30, 48, 37, .24) !important; }
+.workshop-mascot__trigger:focus-visible { outline: 3px solid #bd9650 !important; outline-offset: 3px; }
+.workshop-mascot__trigger .workshop-guide { justify-content: center; gap: 0; pointer-events: none; }
+.workshop-mascot__trigger .workshop-guide__art { width: 49px; height: 49px; }
+.workshop-mascot__trigger .workshop-guide__art svg { width: 49px !important; height: 49px !important; max-width: none; }
+.workshop-mascot__indicator { position: absolute; top: 5px; right: 5px; width: 10px; height: 10px; border: 2px solid #f8f4e9; border-radius: 50%; background: #bd9650; }
+.workshop-mascot__indicator { animation: guide-tip-arrive 420ms ease-out both; }
+.workshop-mascot__popover {
+  z-index: 90;
+  width: min(340px, calc(100vw - 24px));
+  max-height: min(340px, calc(100dvh - 104px));
+  overflow: auto;
+  border: 1px solid #ded9ca;
+  border-radius: 12px;
+  color: #29372f;
+  background: #fffefa;
+  box-shadow: 0 18px 50px rgba(30, 48, 37, .22), 0 3px 12px rgba(30, 48, 37, .12);
+}
+.workshop-mascot__popover [role="dialog"] { padding: 17px 18px 14px; }
+.workshop-mascot__heading { display: flex; align-items: center; gap: 10px; }
+.workshop-mascot__heading .workshop-guide { gap: 0; }
+.workshop-mascot__heading .workshop-guide__art { width: 42px; height: 42px; }
+.workshop-mascot__heading > div:last-child > span { display: block; margin-bottom: 3px; color: #788277; font-size: 8px; font-weight: 700; letter-spacing: 1.2px; }
+.workshop-mascot__heading h2 { margin: 0; color: #244332; font-family: var(--serif); font-size: 18px; font-weight: 500; }
+.workshop-mascot__popover h3 { margin: 14px 0 5px; color: #2e4637; font-family: var(--serif); font-size: 17px; font-weight: 500; }
+.workshop-mascot__message { margin: 0; color: #59645b; font-size: 12px; line-height: 1.55; }
+.workshop-mascot__action, .workshop-mascot__another { min-height: 35px; margin-top: 12px; border: 0; border-radius: 6px; font: inherit; font-size: 11px; font-weight: 650; cursor: pointer; }
+.workshop-mascot__action { width: 100%; padding: 8px 11px; color: #f7f3e9; background: #2e503d; text-align: left; }
+.workshop-mascot__action span { float: right; font-size: 16px; line-height: 12px; }
+.workshop-mascot__another { display: block; margin: 6px 0 0 auto; padding: 5px 2px; color: #65725f; background: transparent; text-decoration: underline; text-underline-offset: 3px; }
+.workshop-mascot__action:focus-visible, .workshop-mascot__another:focus-visible { outline: 2px solid #bd9650; outline-offset: 2px; }
+@keyframes guide-tip-arrive { from { opacity: .5; transform: scale(.78); } to { opacity: 1; transform: scale(1); } }
+
+@media (max-width: 600px) {
+  .workshop-mascot__trigger { right: max(12px, env(safe-area-inset-right)); bottom: max(14px, env(safe-area-inset-bottom)); width: 54px; height: 54px; min-width: 54px; }
+  .workshop-mascot__trigger .workshop-guide__art { width: 44px; height: 44px; }
+  .workshop-mascot__trigger .workshop-guide__art svg { width: 44px !important; height: 44px !important; }
+  .workshop-mascot__popover { width: min(320px, calc(100vw - 20px)); max-height: min(285px, calc(100dvh - 92px)); }
+  .workshop-mascot__popover [role="dialog"] { padding: 14px 15px 11px; }
+  .workshop-mascot__popover h3 { margin-top: 11px; font-size: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .workshop-mascot__trigger, .workshop-mascot__indicator { animation: none !important; transition: none !important; }
+}
+.push-admin__controls .button { justify-self: start; }
+@media (max-width: 650px) {
+  .push-admin-section { grid-template-columns: minmax(0, 1fr); }
+  .push-admin__controls { grid-column: auto; }
+}

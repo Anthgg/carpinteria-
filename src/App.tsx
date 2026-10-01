@@ -10,6 +10,8 @@ import { AppLink } from './components/ModuleTabs';
 import { Icon } from './components/Icon';
 import type { IconName } from './components/Icon';
 import { DetailSkeleton, ErrorState, FormSkeleton, PageLoader, TableSkeleton } from './components/feedback/Feedback';
+import { WorkshopMascot } from './components/feedback/WorkshopMascot';
+import type { WorkshopGuideContext, WorkshopGuideFacts } from './components/feedback/workshop-guide';
 
 // Cada módulo se descarga al abrirlo: el arranque no paga gráficos, producción ni inventario.
 const general = () => import('./screens/GeneralScreens');
@@ -259,6 +261,41 @@ function Workspace({ user, onLogout }: { user: User; onLogout: () => void }) {
   const customers = data.customers as Customer[] | undefined;
   const products = data.products as Product[] | undefined;
   const jobs = data.jobs as Array<{ id: string; order?: { code: string }; orderLine?: { name: string } }> | undefined;
+  const guideContext: WorkshopGuideContext = page === 'customers' || page === 'products' ? 'orders'
+    : page === 'dashboard' || page === 'inventory' || page === 'production' || page === 'orders' || page === 'settings' ? page : 'general';
+  const guideFacts = useMemo<WorkshopGuideFacts>(() => {
+    const facts: WorkshopGuideFacts = {};
+    const number = (value: unknown) => typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+    if (page === 'dashboard') {
+      const summary = data.summary as { activeOrders?: number; openIncidents?: number } | undefined;
+      facts.activeOrders = number(summary?.activeOrders);
+      facts.openIncidents = number(summary?.openIncidents);
+    }
+    if (page === 'inventory') {
+      const loadedPieces = data.pieces as Array<{ kind?: string; state?: string }> | undefined;
+      if (loadedPieces) {
+        facts.availablePieces = loadedPieces.filter((piece) => piece.state === 'AVAILABLE').length;
+        facts.pendingOffcuts = loadedPieces.filter((piece) => piece.kind === 'OFFCUT' && piece.state === 'PENDING_DISPOSITION').length;
+      }
+    }
+    if (page === 'production') {
+      const availability = data.availability as { items?: Array<{ type?: string; requiresDimensions?: boolean; availablePieces?: number }> } | undefined;
+      const cuttingMaterials = availability?.items?.filter((item) => item.type === 'MATERIAL' && item.requiresDimensions);
+      if (cuttingMaterials) {
+        facts.materialsWithPieces = cuttingMaterials.filter((item) => (item.availablePieces ?? 0) > 0).length;
+        facts.materialsWithoutPieces = cuttingMaterials.filter((item) => (item.availablePieces ?? 0) <= 0).length;
+      }
+      facts.productionJobs = Array.isArray(data.jobs) ? data.jobs.length : undefined;
+    }
+    if (page === 'orders') {
+      facts.ordersWithBalance = orders?.filter((order) => order.totalCents > order.paidCents).length;
+    }
+    if (page === 'settings') {
+      const settings = data.settings as SettingValues | undefined;
+      facts.kerfMm = number(settings?.kerfMm);
+    }
+    return facts;
+  }, [data, orders, page]);
   const sectionNames: Record<string, string> = { resumen: 'Resumen', pedidos: 'Pedidos', cobros: 'Cobros', clientes: 'Clientes', productos: 'Productos', articulos: 'Artículos', piezas: 'Piezas y retazos', movimientos: 'Movimientos', tablero: 'Tablero', ordenes: 'Órdenes', taller: 'Taller', cotizacion: 'Cotización', corte: 'Corte', seguimiento: 'Seguimiento', materiales: 'Materiales y piezas', plano: 'Plano de corte', bitacora: 'Bitácora', incidencias: 'Incidencias y fotos' };
   const breadcrumbs: Array<{ label: string; href?: string }> = [{ label: 'Taller', href: '/' }];
   const parentLabel: Partial<Record<AppPage, string>> = { dashboard: 'Resumen', orders: 'Pedidos', inventory: 'Inventario', production: 'Producción', settings: 'Configuración', users: 'Usuarios' };
@@ -380,6 +417,7 @@ function Workspace({ user, onLogout }: { user: User; onLogout: () => void }) {
         </div></Suspense>}
         <footer className="app-footer"><span>CARPINTERÍA ORDENADA 360° <b>·</b> V1</span><span>Un taller. Un solo flujo.</span></footer>
       </main>
+      {!loading && !error ? <WorkshopMascot context={guideContext} facts={guideFacts} /> : null}
     </div>
   );
 }

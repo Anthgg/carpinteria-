@@ -15,6 +15,13 @@ export type DashboardSummary = {
 const NETWORK_ERROR = 'No se pudo conectar con el servidor del taller. Revisa la conexión e inténtalo de nuevo.';
 const SERVER_ERROR = 'El servidor no pudo completar la solicitud. Inténtalo de nuevo en unos segundos.';
 
+export class ApiError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
 async function rawRequest(path: string, init: RequestInit = {}) {
   try {
     return await fetch(`${API_BASE}${path}`, {
@@ -42,8 +49,8 @@ export async function api<T = unknown>(path: string, init: RequestInit = {}, ret
     const body = await response.json().catch(() => null) as { message?: string | string[] } | null;
     const message = Array.isArray(body?.message) ? body?.message.join(' ') : body?.message;
     // Los 5xx llegan con textos técnicos ("Internal server error"); los 4xx traen el mensaje de negocio en español.
-    if (response.status >= 500) throw new Error(SERVER_ERROR);
-    throw new Error(message || `La solicitud no se pudo completar (${response.status}).`);
+    if (response.status >= 500) throw new ApiError(SERVER_ERROR, response.status);
+    throw new ApiError(message || `La solicitud no se pudo completar (${response.status}).`, response.status);
   }
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
