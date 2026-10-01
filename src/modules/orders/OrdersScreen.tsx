@@ -80,7 +80,9 @@ export function OrdersScreen({ data, busy, run, route }: { data: { orders?: Orde
     await run(() => api(`/orders/${selected.id}/status`, { method: 'PUT', body: JSON.stringify({ status }) }), 'Estado del pedido actualizado.');
   };
   const share = (order: Order) => {
-    const phone = order.customer.phone?.replace(/\D/g, '') ?? '';
+    // wa.me exige formato internacional: un celular peruano de 9 dígitos (9xxxxxxxx) recibe el prefijo 51.
+    const digits = order.customer.phone?.replace(/\D/g, '') ?? '';
+    const phone = /^9\d{8}$/.test(digits) ? `51${digits}` : digits;
     const url = `${window.location.origin}/seguimiento/${order.trackingToken}`;
     const message = `Hola ${order.customer.name}, te compartimos el avance de tu pedido ${order.code}. Estado: ${label(order.status, orderLabel)}. Seguimiento: ${url}`;
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
