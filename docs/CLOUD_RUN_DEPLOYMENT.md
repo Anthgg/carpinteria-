@@ -129,6 +129,52 @@ Comprobar, en este orden:
   3. evaluar `connection_limit` > 1 frente al plan de Supabase.
 - **Tamaño de la imagen del backend:** ~760 MB, porque `prisma` y `typescript` llegan como *peer dependencies* de `@prisma/client`.
 
+## E2E público (A019)
+
+Recorrido completo sobre la URL pública con el pedido QA **PED-00010** («Cliente QA E2E Producción», 2 líneas, S/ 472, pago parcial S/ 100). Se recorrieron:
+- roles ADMIN, TESTER y OPERARIO, en interfaz y API;
+- pedido, pago, PDF y QR decodificado;
+- materiales y piezas, diagnóstico de alto 23→18 y simulación;
+- reserva y liberación, con el stock restaurado exactamente;
+- etapas hasta READY, pausa, incidencia, notas y fotos internas/públicas;
+- **Web Push real** en Chrome (FCM): etapa, nota pública, foto pública, producto listo, pedido listo y desactivación;
+- seguridad, Lighthouse, responsive, *reduced motion* y logs.
+
+| Revisión | Cambio |
+|---|---|
+| `00003` | El pedido pasa a «En producción» al avanzar una línea. El aviso de **producto listo** se envía cuando quedan otras líneas pendientes. El signo de descuento del PDF se ve bien. La barra lateral muestra el entorno real |
+| `00004` | Cabeceras de seguridad en nginx (`nosniff`, `Referrer-Policy: same-origin`, `X-Frame-Options: DENY` + `frame-ancestors 'none'`, HSTS, `Permissions-Policy`) e `index.html` con `no-cache`. Estado «sin resultados» al buscar clientes o productos |
+| `00005` | Estado de producción en español («Pausado» / «Completado»). Enlace de WhatsApp con prefijo `51` para celulares peruanos de 9 dígitos |
+
+**Experiencia desde Lima** (mediana en caliente):
+
+| Ruta | Tiempo |
+|---|---|
+| login | 1,2 s |
+| dashboard | 1,6 s |
+| pedidos | 0,75 s |
+| detalle de producción | 1,4 s |
+| seguimiento | 0,55 s |
+| PDF | 2,6 s |
+| página | 0,35 s |
+
+**Lighthouse** (rutas reales): accesibilidad 100 en todas. Rendimiento:
+- escritorio: 94–97;
+- móvil: 82–90.
+
+El SEO queda en 63–66 a propósito: `robots.txt` bloquea la indexación de una app privada con tokens en las URLs.
+
+### Deudas clasificadas
+
+| Severidad | Deuda |
+|---|---|
+| MEDIUM | El botón **Atrás** del navegador con cambios sin guardar en «Materiales y piezas» sale sin confirmar y se pierden. La recarga y el cierre de pestaña sí piden confirmación |
+| MEDIUM | El límite de intentos de login vive en memoria de cada instancia: con varias instancias, cada una cuenta por separado |
+| LOW | Coste por consulta ~70–90 ms (dashboard 15 consultas, detalle de producción 20) |
+| LOW | Imagen del backend ~760 MB |
+| LOW | El *request log* de Cloud Run guarda la URL de seguimiento con el token (acceso restringido al proyecto) |
+| LOW | SEO 63–66 por `robots.txt` (intencional) |
+
 ## Costes
 
 Solo se usan Cloud Run (min 0, se cobra por uso), Artifact Registry (almacenamiento de imágenes), Secret Manager (4 secretos) y logging. No hay Cloud SQL, GKE, VM, balanceador, CDN ni dominio. Antes de subir `min instances` a 1 (para evitar el arranque en frío de la demo), compara el coste mensual de una instancia siempre activa con la molestia del arranque medido.
