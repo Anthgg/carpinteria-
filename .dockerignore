@@ -11,3 +11,7 @@ compose.yml
 compose.prod.yml
 README.md
 *.tsbuildinfo
+.env.supabase
+.env.production
+compose.supabase.yml
+docs
