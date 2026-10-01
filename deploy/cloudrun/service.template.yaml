@@ -16,8 +16,8 @@ spec:
       labels:
         app: ordenada-360
       annotations:
-        autoscaling.knative.dev/minScale: '{{MIN_INSTANCES}}'
-        autoscaling.knative.dev/maxScale: '{{MAX_INSTANCES}}'
+        autoscaling.knative.dev/minScale: {{MIN_INSTANCES}}
+        autoscaling.knative.dev/maxScale: {{MAX_INSTANCES}}
         run.googleapis.com/container-dependencies: '{"frontend":["backend"]}'
         run.googleapis.com/startup-cpu-boost: 'true'
         run.googleapis.com/cpu-throttling: 'true'
@@ -75,19 +75,19 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: ordenada-database-url
-                  key: '{{DATABASE_URL_VERSION}}'
+                  key: {{DATABASE_URL_VERSION}}
             - name: SUPABASE_SECRET_KEY
               valueFrom:
                 secretKeyRef:
                   name: ordenada-supabase-secret-key
-                  key: '{{SUPABASE_SECRET_KEY_VERSION}}'
+                  key: {{SUPABASE_SECRET_KEY_VERSION}}
             - name: JWT_SECRET
               valueFrom:
                 secretKeyRef:
                   name: ordenada-jwt-secret
-                  key: '{{JWT_SECRET_VERSION}}'
+                  key: {{JWT_SECRET_VERSION}}
             - name: VAPID_PRIVATE_KEY
               valueFrom:
                 secretKeyRef:
                   name: ordenada-vapid-private-key
-                  key: '{{VAPID_PRIVATE_KEY_VERSION}}'
+                  key: {{VAPID_PRIVATE_KEY_VERSION}}
