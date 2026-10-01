@@ -5,6 +5,9 @@ coverage/
 .env
 .env.local
 .env.*.local
+.env.supabase
+.env.production
+!.env.example
 *.log
 .DS_Store
 *.tsbuildinfo
