@@ -78,7 +78,7 @@ if ($status -notmatch 'Database schema is up to date') {
 
 $template = Get-Content (Join-Path $frontendRoot 'deploy/cloudrun/service.template.yaml') -Raw
 $values = @{
-  REGION = $Region; PROJECT_ID = $ProjectId; MIN_INSTANCES = "$MinInstances"; MAX_INSTANCES = "$MaxInstances"
+  REGION = $Region; SERVICE_ACCOUNT = "ordenada-360-runtime@$ProjectId.iam.gserviceaccount.com"; MIN_INSTANCES = "$MinInstances"; MAX_INSTANCES = "$MaxInstances"
   FRONTEND_IMAGE = $images.frontend; BACKEND_IMAGE = $images.backend; PUBLIC_BASE_URL = $PublicBaseUrl
   SUPABASE_URL = $config.SUPABASE_URL; SUPABASE_STORAGE_BUCKET = $config.SUPABASE_STORAGE_BUCKET
   VAPID_SUBJECT = "$($config.VAPID_SUBJECT)"; VAPID_PUBLIC_KEY = "$($config.VAPID_PUBLIC_KEY)"; PUSH_TEST_ORDER_CODES = "$($config.PUSH_TEST_ORDER_CODES)"

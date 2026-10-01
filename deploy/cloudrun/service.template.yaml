@@ -22,7 +22,7 @@ spec:
         run.googleapis.com/startup-cpu-boost: 'true'
         run.googleapis.com/cpu-throttling: 'true'
     spec:
-      serviceAccountName: ordenada-360-runtime@{{PROJECT_ID}}.iam.gserviceaccount.com
+      serviceAccountName: {{SERVICE_ACCOUNT}}
       containerConcurrency: 40
       timeoutSeconds: 60
       containers:
