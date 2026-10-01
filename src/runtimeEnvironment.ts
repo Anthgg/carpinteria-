@@ -31,3 +31,6 @@ export function useRuntimeHealth() {
 }
 
 export const isProductionRuntime = (health: RuntimeHealth | null) => health?.environment === 'PRODUCTION';
+
+// Texto corto del entorno para la barra lateral del personal.
+export const environmentLabel = (health: RuntimeHealth | null) => ({ LOCAL: 'Entorno local', SUPABASE: 'Supabase QA', PRODUCTION: 'Producción' } as Record<string, string>)[health?.environment ?? ''] ?? 'Conectando…';

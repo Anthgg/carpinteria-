@@ -9,6 +9,7 @@ import type { DashboardPeriod, DashboardSummary } from './api';
 import { AppLink } from './components/ModuleTabs';
 import { Icon } from './components/Icon';
 import { EnvironmentBadge } from './components/EnvironmentBadge';
+import { environmentLabel, useRuntimeHealth } from './runtimeEnvironment';
 import type { IconName } from './components/Icon';
 import { DetailSkeleton, ErrorState, FormSkeleton, PageLoader, TableSkeleton } from './components/feedback/Feedback';
 import { WorkshopMascot } from './components/feedback/WorkshopMascot';
@@ -153,6 +154,7 @@ function LoginScreen({ onLogin }: { onLogin: (user: User) => void }) {
 const todayDateFormatter = new Intl.DateTimeFormat('es-PE', { weekday: 'long', day: 'numeric', month: 'long' });
 
 function Workspace({ user, onLogout }: { user: User; onLogout: () => void }) {
+  const runtimeHealth = useRuntimeHealth();
   const defaultPath = user.role === 'OPERARIO' ? '/produccion' : '/';
   const [pathname, setPathname] = useState(() => window.location.pathname === '/' && user.role === 'OPERARIO' ? defaultPath : window.location.pathname);
   const [data, setData] = useState<Record<string, unknown>>({});
@@ -382,7 +384,7 @@ function Workspace({ user, onLogout }: { user: User; onLogout: () => void }) {
                 <div className="sidebar-caption">ESPACIO DE TRABAJO</div>
                 <nav className="side-nav" aria-label="Secciones del taller">{navLinks}</nav>
                 <div className="sidebar-spacer" />
-                <div className="sidebar-workshop"><span className="workshop-symbol"><Icon name="dashboard" size={16} /></span><div><b>Taller principal</b><small>Entorno local</small></div><span className="online-light" title="API conectada" /></div>
+                <div className="sidebar-workshop"><span className="workshop-symbol"><Icon name="dashboard" size={16} /></span><div><b>Taller principal</b><small>{environmentLabel(runtimeHealth)}</small></div><span className="online-light" title="API conectada" /></div>
                 <div className="sidebar-user"><div className="avatar">{user.name.slice(0, 1).toUpperCase()}</div><div className="sidebar-user__info"><b>{user.name}</b><small>{user.role === 'OPERARIO' ? 'Operario' : user.role === 'TESTER' ? 'Tester' : 'Administrador'}</small></div><button type="button" className="icon-button logout-button" aria-label="Cerrar sesión" onClick={onLogout}><Icon name="logout" size={18} /></button></div>
               </aside>
             </Drawer.Dialog>
@@ -397,7 +399,7 @@ function Workspace({ user, onLogout }: { user: User; onLogout: () => void }) {
         <div className="sidebar-caption">ESPACIO DE TRABAJO</div>
         <nav className="side-nav" aria-label="Navegación principal">{navLinks}</nav>
         <div className="sidebar-spacer" />
-        <div className="sidebar-workshop"><span className="workshop-symbol"><Icon name="dashboard" size={16} /></span><div><b>Taller principal</b><small>Entorno local</small></div><span className="online-light" title="API conectada" /></div>
+        <div className="sidebar-workshop"><span className="workshop-symbol"><Icon name="dashboard" size={16} /></span><div><b>Taller principal</b><small>{environmentLabel(runtimeHealth)}</small></div><span className="online-light" title="API conectada" /></div>
         <div className="sidebar-user"><div className="avatar">{user.name.slice(0, 1).toUpperCase()}</div><div className="sidebar-user__info"><b>{user.name}</b><small>{user.role === 'OPERARIO' ? 'Operario' : user.role === 'TESTER' ? 'Tester' : 'Administrador'}</small></div><button type="button" className="icon-button logout-button" aria-label="Cerrar sesión" title="Cerrar sesión" onClick={onLogout}><Icon name="logout" size={18} /></button></div>
       </aside>
       <main className="main-area" ref={mainRef}>
