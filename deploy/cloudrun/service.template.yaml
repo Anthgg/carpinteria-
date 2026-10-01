@@ -1,0 +1,93 @@
+# Cloud Run (multi-contenedor) para Ordenada 360. Plantilla SIN secretos: los valores {{…}} los completa
+# scripts/deploy-cloud-run.ps1 y los secretos se referencian por nombre y versión fija de Secret Manager.
+#
+#   frontend (ingress, :8080)  nginx + SPA; /api → 127.0.0.1:3000
+#   backend  (sidecar, :3000)  NestJS; arranca primero (container-dependencies + startup probe)
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: ordenada-360
+  labels:
+    cloud.googleapis.com/location: {{REGION}}
+    app: ordenada-360
+spec:
+  template:
+    metadata:
+      labels:
+        app: ordenada-360
+      annotations:
+        autoscaling.knative.dev/minScale: '{{MIN_INSTANCES}}'
+        autoscaling.knative.dev/maxScale: '{{MAX_INSTANCES}}'
+        run.googleapis.com/container-dependencies: '{"frontend":["backend"]}'
+        run.googleapis.com/startup-cpu-boost: 'true'
+        run.googleapis.com/cpu-throttling: 'true'
+    spec:
+      serviceAccountName: ordenada-360-runtime@{{PROJECT_ID}}.iam.gserviceaccount.com
+      containerConcurrency: 40
+      timeoutSeconds: 60
+      containers:
+        - name: frontend
+          image: {{FRONTEND_IMAGE}}
+          ports:
+            - name: http1
+              containerPort: 8080
+          resources:
+            limits:
+              cpu: '0.5'
+              memory: 256Mi
+        - name: backend
+          image: {{BACKEND_IMAGE}}
+          resources:
+            limits:
+              cpu: '1'
+              memory: 512Mi
+          startupProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            periodSeconds: 5
+            timeoutSeconds: 4
+            failureThreshold: 24
+          env:
+            - name: APP_ENV
+              value: PRODUCTION
+            - name: STORAGE_DRIVER
+              value: supabase
+            - name: UPLOAD_DIR
+              value: /tmp/uploads
+            - name: TRUST_PROXY_HOPS
+              value: '2'
+            - name: PUBLIC_BASE_URL
+              value: {{PUBLIC_BASE_URL}}
+            - name: CORS_ORIGINS
+              value: {{PUBLIC_BASE_URL}}
+            - name: SUPABASE_URL
+              value: {{SUPABASE_URL}}
+            - name: SUPABASE_STORAGE_BUCKET
+              value: {{SUPABASE_STORAGE_BUCKET}}
+            - name: VAPID_SUBJECT
+              value: {{VAPID_SUBJECT}}
+            - name: VAPID_PUBLIC_KEY
+              value: {{VAPID_PUBLIC_KEY}}
+            - name: PUSH_TEST_ORDER_CODES
+              value: {{PUSH_TEST_ORDER_CODES}}
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: ordenada-database-url
+                  key: '{{DATABASE_URL_VERSION}}'
+            - name: SUPABASE_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: ordenada-supabase-secret-key
+                  key: '{{SUPABASE_SECRET_KEY_VERSION}}'
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: ordenada-jwt-secret
+                  key: '{{JWT_SECRET_VERSION}}'
+            - name: VAPID_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: ordenada-vapid-private-key
+                  key: '{{VAPID_PRIVATE_KEY_VERSION}}'
