@@ -97,7 +97,7 @@ try {
 if ($AllowPublic) {
   gcloud run services add-iam-policy-binding ordenada-360 --region $Region --project $ProjectId --member allUsers --role roles/run.invoker --quiet | Out-Null
 }
-$url = gcloud run services describe ordenada-360 --region $Region --project $ProjectId --format 'value(status.url)'
-Write-Host "Servicio: $url"
+$urls = (gcloud run services describe ordenada-360 --region $Region --project $ProjectId --format 'value(metadata.annotations."run.googleapis.com/urls")' | ConvertFrom-Json)
+Write-Host "Servicio: $($urls -join ' | ')"
 Write-Host "Imágenes: $($images.backend) | $($images.frontend)"
-if ($url -ne $PublicBaseUrl) { Write-Warning "La URL del servicio ($url) difiere de PublicBaseUrl ($PublicBaseUrl): vuelve a desplegar con la URL real." }
+if ($urls -notcontains $PublicBaseUrl) { Write-Warning "PublicBaseUrl ($PublicBaseUrl) no es una URL del servicio ($($urls -join ', ')): vuelve a desplegar con la URL real." }
